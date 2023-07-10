@@ -1,0 +1,44 @@
+<html>
+<body>
+<pre>
+<h1>Erstellungsprotokoll</h1>
+<h3>
+--------------------Konfiguration: demodll - Win32 Debug--------------------
+</h3>
+<h3>Befehlszeilen</h3>
+Erstellen der temporären Datei  "C:\DOCUME~1\ANDREA~1\LOCALS~1\Temp\RSP87.tmp" mit Inhalten
+[
+/nologo /MLd /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /FR"Debug/" /Fo"Debug/" /Fd"Debug/" /FD /GZ /c 
+"C:\Documents and Settings\Andreas Ruben\My Documents\Sync\JTEC\Software\XX-USB\XX-USB_CD3_2_1\MS-Windows C++\EasyCAMAC demo-c\demodll.cpp"
+]
+Creating command line "cl.exe @C:\DOCUME~1\ANDREA~1\LOCALS~1\Temp\RSP87.tmp" 
+Erstellen der temporären Datei  "C:\DOCUME~1\ANDREA~1\LOCALS~1\Temp\RSP88.tmp" mit Inhalten
+[
+/nologo /MLd /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /FR"Debug/" /Fp"Debug/demodll.pch" /Yc"stdafx.h" /Fo"Debug/" /Fd"Debug/" /FD /GZ /c 
+"C:\Documents and Settings\Andreas Ruben\My Documents\Sync\JTEC\Software\XX-USB\XX-USB_CD3_2_1\MS-Windows C++\EasyCAMAC demo-c\StdAfx.cpp"
+]
+Creating command line "cl.exe @C:\DOCUME~1\ANDREA~1\LOCALS~1\Temp\RSP88.tmp" 
+Erstellen der temporären Datei  "C:\DOCUME~1\ANDREA~1\LOCALS~1\Temp\RSP89.tmp" mit Inhalten
+[
+kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib libxxusb.lib /nologo /subsystem:console /incremental:yes /pdb:"Debug/demodll.pdb" /debug /machine:I386 /out:"Debug/demodll.exe" /pdbtype:sept 
+".\Debug\demodll.obj"
+".\Debug\StdAfx.obj"
+]
+Erstellen der Befehlzeile "link.exe @C:\DOCUME~1\ANDREA~1\LOCALS~1\Temp\RSP89.tmp"
+<h3>Ausgabefenster</h3>
+Kompilierung läuft...
+StdAfx.cpp
+Kompilierung läuft...
+demodll.cpp
+Linker-Vorgang läuft...
+Erstellen der Befehlzeile "bscmake.exe /nologo /o"Debug/demodll.bsc"  ".\Debug\StdAfx.sbr" ".\Debug\demodll.sbr""
+Browse-Informationsdatei wird erstellt...
+<h3>Ausgabefenster</h3>
+
+
+
+<h3>Ergebnisse</h3>
+demodll.exe - 0 Fehler, 0 Warnung(en)
+</pre>
+</body>
+</html>
