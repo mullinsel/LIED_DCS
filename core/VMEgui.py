@@ -38,8 +38,8 @@ def readID_func():
     readText.delete("1.0",END)
     dataread = pyxxusb.new_longArray(1)
     pyxxusb.VME_register_read(deviceID,0,dataread)
-    firmwareID = decimalToBinary(pyxxusb.long_p_value(dataread))
-    readText.insert(END,str(firmwareID_read(firmwareID)))
+    firmwareID = infoVME.basicFunctions.decimalToBinary(pyxxusb.long_p_value(dataread))
+    readText.insert(END,str(infoVME.readFunctions.read_firmwareID(firmwareID)))
     return
 
 def readGlobal_func():
@@ -47,7 +47,7 @@ def readGlobal_func():
     readGlobalText.delete("1.0",END)
     datareadglobal = pyxxusb.new_longArray(1)
     pyxxusb.VME_register_read(deviceID,4,datareadglobal)
-    globalInfo = infoVME.basicFunctionsdecimalToBinary(pyxxusb.long_p_value(datareadglobal))
+    globalInfo = infoVME.basicFunctions.decimalToBinary(pyxxusb.long_p_value(datareadglobal))
     readGlobalText.insert(END,str(infoVME.readFunctions.read_globalMode(globalInfo)))
     return
 
@@ -92,11 +92,7 @@ def stop_func():
     runningText.insert(END,'DAQ is not running')
     return
 
-def decimalToBinary(n):
-    return bin(n).replace("0b", "")
-
-def binaryToDecimal(n):
-    return int(n,2)
+######
 
 def firmwareID_read(binary_read):
     while len(binary_read)!= 32:
