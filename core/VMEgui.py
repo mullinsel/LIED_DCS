@@ -8,6 +8,7 @@ sys.path.insert(0,'C:\\Users\cbonline\Documents\CC_TDC-main\interface\\')
 import time
 global deviceID
 from pyxxusb import pyxxusb
+import infoVME
 
 #pyxxusblib = MyClient()
 deviceID = ''
