@@ -4,17 +4,44 @@ import sys
 
 #python package for reading VME address info
 
-class infoVME():
-    def __init__():
+class infoVME(self):
+    def __init__(self):
         return
-
-    def decimalToBinary(n):
+    
+    def decimalToBinary(self,n):
         return bin(n).replace("0b", "")
 
-    def binaryToDecimal(n):
+    def binaryToDecimal(self,n):
         return int(n,2)
 
-    def firmwareID_read(binary_read):
+    def write_globalMode(self,buffOpt,mixtBuff,FrceSclrDmp,align32,HdrOpt,DmpOpt,BusReq):
+        #BuffOpt can be
+        # 0 -> 13k (default)
+        # 1 -> 8k
+        # 2 -> 4k
+        # 3 -> 2k
+        # 4 -> 1k
+        # 5 -> 512
+        # 6 -> 256
+        # 7 -> 128
+        # 8 -> 64
+        # 9 -> Event Count
+
+        #DmpOpt
+        # 0 -> no auto dump (default)
+        # 1 -> 100ms
+        # 2 -> 250ms
+        # 3 -> 500ms
+
+        #BusReq from 0-4 when VM-USB not operated as slot 1
+        
+        buffOptBin = self.decimalToBinary(buffOpt)
+        BusReqBin = self.decimalToBinary(BusReq)
+        DmpOptBin = self.decimalToBinary(DmpOpt)
+        binString = ['0',BusReqBin,DmpOptBin,HdrOpt,align32,FrceSclrDmp,mixtBuff,buffOptBin]
+        return binString
+    
+    def read_firmwareID(binary_read):
         while len(binary_read)!= 32:
             binary_read = ''.join(('0',binary_read))
         month = binaryToDecimal(binary_read[:4])
@@ -25,7 +52,7 @@ class infoVME():
         minorRev = binaryToDecimal(binary_read[24:])
         return month,year,deviceID,betaVersion,majorRev,minorRev
 
-    def globalMode_read(binary_read):
+    def read_globalMode(binary_read):
         binary_read = binary_read[:16]
         while len(binary_read)!= 16:
             binary_read = ''.join(('0',binary_read))
@@ -39,7 +66,7 @@ class infoVME():
         BusReq = binaryToDecimal(binary_read[11:14])
         return buffOpt,mixtBuff,FrceSclrDmp,align32,HdrOpt,DmpOpt,BusReq
 
-    def DAQsettings_read(binary_read):
+    def read_DAQsettings(binary_read):
         while len(binary_read)!= 32:
             binary_read = ''.join(('0',binary_read))
         scalerReadoutFreq = binaryToDecimal(binary_read[:16])
