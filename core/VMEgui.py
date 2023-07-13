@@ -4,11 +4,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tkinter import *
 sys.path.insert(0,'C:\\Users\cbonline\Documents\CC_TDC-main\interface\\')
-from my_client import MyClient
+#from my_client import MyClient
 import time
 global deviceID
+from pyxxusb import pyxxusb
 
-pyxxusblib = MyClient()
+#pyxxusblib = MyClient()
 deviceID = ''
 
 def read_buffer():
