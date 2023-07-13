@@ -47,8 +47,8 @@ def readGlobal_func():
     readGlobalText.delete("1.0",END)
     datareadglobal = pyxxusb.new_longArray(1)
     pyxxusb.VME_register_read(deviceID,4,datareadglobal)
-    globalInfo = decimalToBinary(pyxxusb.long_p_value(datareadglobal))
-    readGlobalText.insert(END,str(globalMode_read(globalInfo)))
+    globalInfo = infoVME.basicFunctionsdecimalToBinary(pyxxusb.long_p_value(datareadglobal))
+    readGlobalText.insert(END,str(infoVME.readFunctions.read_globalMode(globalInfo)))
     return
 
 def connect_func():
