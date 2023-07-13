@@ -14,6 +14,12 @@ class infoVME(self):
     def binaryToDecimal(self,n):
         return int(n,2)
 
+    def generate_stack(self,address,command):
+        #address input in hex (ex: 0x04000000)
+        VMEaddress = address.replace("0x","")
+        stack = [VMEaddress[4:],VMEaddress[:4]]
+        return
+    
     def write_globalMode(self,buffOpt,mixtBuff,FrceSclrDmp,align32,HdrOpt,DmpOpt,BusReq):
         #BuffOpt can be
         # 0 -> 13k (default)
