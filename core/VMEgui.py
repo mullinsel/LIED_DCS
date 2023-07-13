@@ -73,6 +73,14 @@ def disconnect_func():
     connectedText.insert(END,'Not Connected to device')
     return
 
+def stack_read():
+    global deviceID
+    stackNumber = pyxxusb.new_int_p(1)
+    pyxxusb.set_int_value(stackNumber,2)
+    stackOut = pyxxusb.new_longArray(20)
+    pyxxusb.xxusb_stack_read(deviceID,stackNumber,stackOut)
+    return stackOut
+
 def write_stack():
     pyxxusb.xxusb_stack_write()
     verify = pyxxusb.stack_read()
