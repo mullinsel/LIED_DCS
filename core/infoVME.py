@@ -4,7 +4,7 @@ import sys
 
 #python package for reading VME address info
 
-class infoVME(self):
+class basicFunctions(self):
     def __init__(self):
         return
     
@@ -19,8 +19,13 @@ class infoVME(self):
         VMEaddress = address.replace("0x","")
         stack = [VMEaddress[4:],VMEaddress[:4]]
         return
-    
+
+class writeFunctions(self):
+    def __init__(self):
+        return
+        
     def write_globalMode(self,buffOpt,mixtBuff,FrceSclrDmp,align32,HdrOpt,DmpOpt,BusReq):
+        #16 bits total
         #BuffOpt can be
         # 0 -> 13k (default)
         # 1 -> 8k
@@ -45,8 +50,20 @@ class infoVME(self):
         BusReqBin = self.decimalToBinary(BusReq)
         DmpOptBin = self.decimalToBinary(DmpOpt)
         binString = ['0',BusReqBin,DmpOptBin,HdrOpt,align32,FrceSclrDmp,mixtBuff,buffOptBin]
-        return binString
-    
+        return
+
+    def write_DAQsettings(ReadoutTriggerDelay,SclrPeriod,SclrFreq):
+        #32 bits total
+        #ReadoutTriggerDelay is the time in microseconds between when start signal is applied to NIM I1 or IRQ before stack execution
+        #SclrPeriod is the max time interval in units of 0.5s between consecutive executions of the scaler stack
+        #SclrFreq is the relative frequency which the scaler stack is to execute during daq (value is the max number of data events separating the scaler readout events
+        stack = [self.decimalToBinary(SclrFreq),self.decimalToBinary(SclrPeriod),self.decimalToBinary(ReadoutTriggerDelay)]
+        return    
+
+class readFunctions(self):
+    def __init__(self):
+        return
+        
     def read_firmwareID(binary_read):
         while len(binary_read)!= 32:
             binary_read = ''.join(('0',binary_read))
