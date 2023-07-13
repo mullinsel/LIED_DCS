@@ -73,6 +73,11 @@ def disconnect_func():
     connectedText.insert(END,'Not Connected to device')
     return
 
+def write_stack():
+    pyxxusb.xxusb_stack_write()
+    verify = pyxxusb.stack_read()
+    return
+
 def start_func():
     runningText.configure(background='green')
     runningText.update()
