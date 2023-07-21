@@ -6,11 +6,13 @@ import numpy as np
 import matplotlib.colors as mcolors
 import matplotlib.patches as patches
 
-RADIUS, OFFSET, NUM_POINTS  = 400, 600, 1000
+RADIUS, OFFSET, NUM_POINTS  = 400, 800, 1000
 DATA_FILE_PATH = "C:\\Users\\kobyh\\Desktop\\Data\\output_data.dat"
-DIRECTORY = r'C:\Users\kobyh\Desktop\Data\Raw Data\Propane'
-NAMING_CONVENTION = r'Propane_3um_(\d+)ang_TDC2228A'
+DIRECTORY = r'C:\Users\kobyh\Desktop\Data\Raw Data\Iso-Butane'
+NAMING_CONVENTION = r'IsoButane_3um_(\d+)ang_TDC2228A'
 PADDING_VALUE = 1
+SIGMA_E = 10
+SIGMA_A = 10
 
 def generate_points_around_circle(radius, num_points, offset):
     angles = np.linspace(0, 360, num_points, endpoint=False)
@@ -25,7 +27,29 @@ def read_data_file(file_path):
 def extract_columns_as_arrays(data):
     return {f"array_{int(column[0])}": column[1:] for column in np.array(data).T}
 
-def get_nearest_y_element(x, y, all_values_array, arrays):
+def gaussian_weight_2d(E, theta, E_i, A_j, sigma_E=1, sigma_A=1):
+    return np.exp(
+        -((E_i - E) ** 2 / (2 * sigma_E ** 2)) - ((A_j - theta) ** 2 / (2 * sigma_A ** 2))
+    )
+
+def get_nearest_y_element(x, y, all_values_array, arrays, points_dict_transformed, SIGMA_E, SIGMA_A):
+    if SIGMA_E == 1 and SIGMA_A == 1:
+        # Use the original implementation for faster execution
+        return get_nearest_y_element_original(x, y, all_values_array, arrays)
+
+    weighted_sum = 0
+    total_weight = 0
+    for point_angle, (x_value, y_value) in points_dict_transformed:
+        angle_weight = gaussian_weight_2d(x, y, x_value, y_value, SIGMA_E, SIGMA_A)
+        y_nearest = get_nearest_y_element_original(x_value, y_value, all_values_array, arrays)
+        weighted_sum += angle_weight * y_nearest
+        total_weight += angle_weight
+
+    if total_weight > 0:
+        return weighted_sum / total_weight
+    return 0
+
+def get_nearest_y_element_original(x, y, all_values_array, arrays):
     return next((arrays[f"array_{x_value}"][int(y)] for x_value in range(int(x), -1, -1) if f"array_{x_value}" in arrays and 0 <= (index := int(y)) < len(arrays[f"array_{x_value}"])), 0)
 
 def plot_circular_polar_plot(combined_array, star_values, num_rows, radius, offset):
@@ -149,7 +173,7 @@ def main():
     arrays = extract_columns_as_arrays(data)
     all_values_array = sorted({int(key.split("_")[1]) for key in arrays if key.startswith("array_")})
 
-    points_with_nearest_y = [(point_angle, get_nearest_y_element(abs(x), y, all_values_array, arrays)) for point_angle, (x, y) in points_dict_transformed]
+    points_with_nearest_y = [(point_angle, get_nearest_y_element(abs(x), y, all_values_array, arrays, points_dict_transformed, SIGMA_E, SIGMA_A)) for point_angle, (x, y) in points_dict_transformed]
 
     points_with_nearest_y.sort(key=lambda tup: tup[0])
     x_values, y_values = zip(*points_with_nearest_y)
