@@ -59,7 +59,7 @@ def plot_circular_polar_plot(combined_array, star_values, num_rows, radius, offs
     plt.colorbar(pcm, ax=ax, label='Energy Counts')
     plt.show()
 
-#Generate equidistant points around offset points. Transform from polar to cartesian.
+#Generate equidistant points around offset circle. Transform from polar to cartesian.
 def generate_and_transform_points(radius, num_points, offset):
     angles = np.linspace(0, 360, num_points, endpoint=False)
     points_dict = {angle: (radius * np.cos(np.radians(angle)), offset + radius * np.sin(np.radians(angle))) for angle in angles}
