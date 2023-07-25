@@ -2,19 +2,18 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import matplotlib.patches as patches
 from collections import namedtuple
-from scipy.stats import mode
+from collections import Counter
 import numpy as np
 import fnmatch
 import os
 
-RADIUS, OFFSET, NUM_POINTS  = 400, 800, 1000
+RADIUS, OFFSET, NUM_POINTS  = 800, 650, 1000
 DIRECTORY = r"C:\Users\kobyh\Desktop\Data\Raw Data\Methane"
 NAMING_CONVENTION = "CH4_3um_*ang_TDC2228A.dat"
 PADDING_VALUE = 1
-SIGMA_T = 10   #Adjust SIGMA_T and SIGMA_A to conscider gaussian distribution around each point
+SIGMA_T = 50   #Adjust SIGMA_T and SIGMA_A to conscider gaussian distribution around each point
 SIGMA_A = 10   #Set SIGMA_T and SIGMA_A to 1 for faster DCS method with no gaussian smoothing
 
-#Raw data: 1 colunm, 2048 lines, TOF data at various angles
 def raw_data_to_table(DIRECTORY, NAMING_CONVENTION):
     DataTuple = namedtuple("DataTuple", ["num", "data"])
     file_list = [file for file in os.listdir(DIRECTORY) if fnmatch.fnmatch(file, NAMING_CONVENTION)]
@@ -25,19 +24,19 @@ def raw_data_to_table(DIRECTORY, NAMING_CONVENTION):
     ]
 
     difference_array = np.diff([t.num for t in tuples])
-    mode_value = mode(difference_array)
-    spacing = np.round(mode_value[0])
+    spacing = Counter(difference_array).most_common(1)[0][0]
     max_num = max(t.num for t in tuples)
-    num_list = sorted([t.num for t in tuples] + [max_num + i * spacing for i in range(100) if max_num + i * spacing <= 90])
+    max_value = 90
+    num_list = sorted([t.num for t in tuples] + [max_num + i * spacing for i in range(100) if max_num + i * spacing <= max_value])
     missing_nums = [num for num in num_list if num not in [t.num for t in tuples]]
     
-    tuples += [DataTuple(num=i, data=np.ones(2048) * PADDING_VALUE) for i in missing_nums]   #Add padding arrays to fill in missing info up to 90deg
-    tuples += [DataTuple(num=360 - t.num, data=t.data) for t in tuples if t.num in num_list] #Mirror data into all 4 quadrants
+    tuples += [DataTuple(num=i, data=np.ones(2048) * PADDING_VALUE) for i in missing_nums] #Pad arrays up to 90 with same spacing as data
+    tuples += [DataTuple(num=360 - t.num, data=t.data) for t in tuples if t.num in num_list] #Reflect the arrays into the other 3 quadrants
     tuples += [DataTuple(num=180 - t.num, data=t.data) for t in tuples if t.num in num_list]
     tuples += [DataTuple(num=180 + t.num, data=t.data) for t in tuples if t.num in num_list and t.num != 0]
 
     tuples.sort(key=lambda t: t.num)
-    table = (np.array([t.data for t in tuples])).T + 1e-6 #Make table from arrays. Flip to correct orrientation. Add small value so log plot doesn't have undefined regions.
+    table = (np.array([t.data for t in tuples])).T + 1e-6 #Flip and add small constant so log scale isn't undefined
     star_values = [t.num for t in tuples]
     arrays = {f"array_{int(t.num)}": t.data for t in tuples}
 
@@ -60,7 +59,7 @@ def plot_circular_polar_plot(combined_array, star_values, num_rows, radius, offs
     plt.colorbar(pcm, ax=ax, label='Energy Counts')
     plt.show()
 
-#Generates equidistant points around offset circle. Preforms polar --> cartesian transformation
+#Generate equidistant points around offset points. Transform from polar to cartesian.
 def generate_and_transform_points(radius, num_points, offset):
     angles = np.linspace(0, 360, num_points, endpoint=False)
     points_dict = {angle: (radius * np.cos(np.radians(angle)), offset + radius * np.sin(np.radians(angle))) for angle in angles}
@@ -72,7 +71,8 @@ def gaussian_weight_2d(E, theta, E_i, A_j, SIGMA_T, SIGMA_A):
         -((E_i - E) ** 2 / (2 * SIGMA_T ** 2)) - ((A_j - theta) ** 2 / (2 * SIGMA_A ** 2))
     )
 
-#Overlays transformed points on top of combined array. Determines which bin each point lands in (or a gaussian distribution around each point)
+#Overlay transformed points on top of combined array to determine in which bin each point lies
+#Conscider surrounding bins with 2D gaussian wright if desired
 def get_DCS(x, y, all_values_array, arrays, points_dict_transformed, SIGMA_T, SIGMA_A):
     if SIGMA_T == 1 and SIGMA_A == 1:
         x_value, y_value = x, y
