@@ -37,7 +37,7 @@ def raw_data_to_table(DIRECTORY, NAMING_CONVENTION):
     tuples += [DataTuple(num=180 + t.num, data=t.data) for t in tuples if t.num in num_list and t.num != 0]
 
     tuples.sort(key=lambda t: t.num)
-    table = (np.array([t.data for t in tuples])).T + 1e-6
+    table = (np.array([t.data for t in tuples])).T + 1e-6 #Make table from arrays. Flip to correct orrientation. Add small value so log plot doesn't have undefined regions.
     star_values = [t.num for t in tuples]
     arrays = {f"array_{int(t.num)}": t.data for t in tuples}
 
@@ -60,6 +60,7 @@ def plot_circular_polar_plot(combined_array, star_values, num_rows, radius, offs
     plt.colorbar(pcm, ax=ax, label='Energy Counts')
     plt.show()
 
+#Generates equidistant points around offset circle. Preforms polar --> cartesian transformation
 def generate_and_transform_points(radius, num_points, offset):
     angles = np.linspace(0, 360, num_points, endpoint=False)
     points_dict = {angle: (radius * np.cos(np.radians(angle)), offset + radius * np.sin(np.radians(angle))) for angle in angles}
@@ -71,6 +72,7 @@ def gaussian_weight_2d(E, theta, E_i, A_j, SIGMA_T, SIGMA_A):
         -((E_i - E) ** 2 / (2 * SIGMA_T ** 2)) - ((A_j - theta) ** 2 / (2 * SIGMA_A ** 2))
     )
 
+#Overlays transformed points on top of combined array. Determines which bin each point lands in (or a gaussian distribution around each point)
 def get_DCS(x, y, all_values_array, arrays, points_dict_transformed, SIGMA_T, SIGMA_A):
     if SIGMA_T == 1 and SIGMA_A == 1:
         x_value, y_value = x, y
