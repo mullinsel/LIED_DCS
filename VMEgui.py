@@ -77,7 +77,7 @@ class main_DAQ:
         return
 
     def stack_DAQ(self):
-        stackin = [0x0005, 0x0000, 0x0109, 0x0000, 0x0000, 0x0400] #stack to be written
+        stackin = [0x0005, 0x0002, 0x0109, 0x0000, 0x0000, 0x0400] #stack to be written
         stackdata = pyxxusb.new_longArray(len(stackin)) #array containing the stack info to be written
         for i in range(len(stackin)):
             pyxxusb.longArray_setitem(stackdata, i, stackin[i])
@@ -92,13 +92,10 @@ class main_DAQ:
         self.stack_DAQ()
         #VME settings
         time.sleep(1)
-        writecheck = 2 #pyxxusb.VME_register_write(self.devID, 0x8, 0x0) #sets the readout trigger delay
-        time.sleep(1)
-        writecheck2 = 2#pyxxusb.VME_register_write(self.devID,0x4, 0x01B0)
-        time.sleep(1)
-        #print(writecheck2)
-        bulkset = pyxxusb.VME_register_write(self.devID, 0x3C, 0x0000FFFF)
-        #print(bulkset)
+        writecheck = 2 #pyxxusb.VME_register_write(self.devID, 0x8, 0x02) #sets the readout trigger delay
+        writecheck2 =2# pyxxusb.VME_register_write(self.devID,0x4, 0x01B0)
+        bulkset = pyxxusb.VME_register_write(self.devID, 60, 3320)
+        print(bulkset)
         if writecheck < 0 or writecheck2 < 0:
             self.errorText.config(state='normal')
             self.errorText.insert(END, 'DAQ Settings failed to set!')
@@ -113,19 +110,20 @@ class main_DAQ:
         time.sleep(1)
         pyxxusb.VME_write_16(self.devID,0x0E,0x0400102E,0x1100)
         time.sleep(1)
-        pyxxusb.VME_write_16(self.devID,0x0E,0x0400102E,-400)
+        pyxxusb.VME_write_16(self.devID,0x0E,0x0400102E,-500)
         time.sleep(1)
         pyxxusb.VME_write_16(self.devID,0x0E,0x0400102E,0x1000)
         time.sleep(1)
-        pyxxusb.VME_write_16(self.devID,0x0E,0x0400102E,200)
+        pyxxusb.VME_write_16(self.devID,0x0E,0x0400102E,350)
         time.sleep(1)
         pyxxusb.VME_write_16(self.devID,0x0E,0x0400102E,0x1300)
         time.sleep(1)
         pyxxusb.VME_write_16(self.devID,0x0E,0x0400102E,2)
         time.sleep(1)
-        #pyxxusb.VME_write_16(self.devID,0x0E,0x0400102E,0x1400)
-        #time.sleep(1)
-
+        pyxxusb.VME_write_16(self.devID,0x0E,0x0400102E,0x1400)
+        time.sleep(1)
+        pyxxusb.VME_write_16(self.devID, 0x0E, 0x0400102E, 1)
+        time.sleep(1)
         #self.set_window_width(0x0E, 0x0400102E,0x015E)  # sets window width to 350 cycles (8.7 microseconds now)
         #self.set_reject(0x0E, 0x0400102E,0x0001)  # sets reject margin
         #self.sendCODE(0x0E, 0x0400102E, 0x1400)  # subtract trigger offset
@@ -307,9 +305,9 @@ class main_DAQ:
         self.DAQ_mode_on()
         #time.sleep(3)
         #self.drain_FIFO()
-        time.sleep(3)
+        time.sleep(1)
         finalOutData = self.read_FIFO()
-        for i in range(30):
+        for i in range(10):
             finalOutData = np.append(finalOutData,self.read_FIFO())
             time.sleep(0.1)
         self.stop_func()
