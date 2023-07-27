@@ -6,12 +6,13 @@ from tkinter import *
 import time
 from pyxxusb import pyxxusb
 #import infoVME
-#import customtkinter
+import customtkinter
 
+customtkinter.set_default_color_theme("C:\\Users\cbonline\PycharmProjects\LIED_DCS\custom-tktheme.json")
 class main_DAQ:
     def __init__(self,master):
         master.title("DAQ GUI") #set window title
-        master.config(height=700,width=1000,background='grey')
+        master.config(height=700,width=1000)
         #master.protocol("WM_DELETE_WINDOW",self.close_window)
         self.master = master
         self.runningDAQ = False
@@ -24,34 +25,34 @@ class main_DAQ:
         self.runningText.insert(END,'DAQ Not Running')
         self.runningText.place(x=20,y=60)
         self.runningText.config(state=DISABLED)
-        Label(master,text='Save Directory',font=30).place(x=20,y=580)
+        customtkinter.CTkLabel(master,text='Save Directory',font=('Helvetica',30)).place(x=20,y=550)
         self.saveDirectory = Entry(master)
         self.saveDirectory.insert(END,'test.txt')
         self.saveDirectory.place(x=20,y=600)
-        self.startButton = Button(master,text='Start',command=self.start_func,height=2,width=10)
+        self.startButton = customtkinter.CTkButton(master,text='Start',command=self.start_func,height=40,width=80)
         self.startButton.place(x=200,y=60)
-        self.stopButton = Button(master,text="Stop",command=self.stop_func,height=2,width=10)
+        self.stopButton = customtkinter.CTkButton(master,text="Stop",command=self.stop_func,height=40,width=80)
         self.stopButton.place(x=300,y=60)
-        self.connectButton=Button(master,text="Connect",command=self.connect_func,height=2,width=10)
+        self.connectButton = customtkinter.CTkButton(master,text="Connect",command=self.connect_func,height=40,width=80)
         self.connectButton.place(x=200,y=20)
-        self.disconnectButton = Button(master,text='Disconnect',command=self.disconnect_func,height=2,width=10)
+        self.disconnectButton = customtkinter.CTkButton(master,text='Disconnect',command=self.disconnect_func,height=40,width=80)
         self.disconnectButton.place(x=300,y=20)
-        Label(master,text='Settings',font=30,background='white').place(x=805,y=20)
+        customtkinter.CTkLabel(master,text='Settings',font=('Helvetica',30)).place(x=800,y=20)
         #Label(master,text='Trigger Offset').place(x=805,y=180)
-        self.triggerOffset = Entry(master)
-        self.triggerOffset.insert(END,'0xF800')
+        #self.triggerOffset = Entry(master)
+        #self.triggerOffset.insert(END,'0xF800')
         #self.triggerOffset.place(x=755,y=200)
         #Label(master,text='Window Width').place(x=805,y=230)
-        self.windowWidth = Entry(master)
-        self.windowWidth.insert(END,'0x0800')
+        #self.windowWidth = Entry(master)
+        #self.windowWidth.insert(END,'0x0800')
         #self.windowWidth.place(x=755,y=250)
         #Label(master,text='Reject Window').place(x=805,y=280)
-        self.rejectWindow = Entry(master)
-        self.rejectWindow.insert(END,'0x01')
+        #self.rejectWindow = Entry(master)
+        #self.rejectWindow.insert(END,'0x01')
         #self.rejectWindow.place(x=755,y=300)
-        self.writeSettings = Button(master,text="Write Settings",command=self.setup_config,height=2,width=10)
+        self.writeSettings = customtkinter.CTkButton(master,text="Write Settings",command=self.setup_config,height=40,width=80)
         self.writeSettings.place(x=800,y=400)
-        Label(master,text='Errors',font=30).place(x=805,y=500)
+        customtkinter.CTkLabel(master,text='Errors',font=('Helvetica',30)).place(x=800,y=480)
         self.errorText = Text(master,width=30,height=10)
         self.errorText.insert(END,"No Errors Yet")
         self.errorText.place(x=705,y=525)
@@ -60,13 +61,13 @@ class main_DAQ:
         self.settingsStatus.place(x=750,y=360)
         self.settingsStatus.config(state=DISABLED)
         #Label(master,text='Runtime Set',font=30).place(x=20,y=130)
-        self.runTime = Entry(master)
-        self.runTime.insert(END,'10')
+        #self.runTime = Entry(master)
+        #self.runTime.insert(END,'10')
         #self.runTime.place(x=20,y=150)
         #Label(master,text='Current Time',font=30).place(x=20,y=170)
-        self.currentTimeText = Text(master,height=1,width=15)
-        self.currentTimeText.insert(END,'0')
-        self.currentTimeText.config(state=DISABLED)
+        #self.currentTimeText = Text(master,height=1,width=15)
+        #self.currentTimeText.insert(END,'0')
+        #self.currentTimeText.config(state=DISABLED)
         #self.currentTimeText.place(x=20,y=200)
 
     def close_window(self):
@@ -88,31 +89,50 @@ class main_DAQ:
         return
 
     def setup_config(self):
+        self.stack_DAQ()
         #VME settings
-        writecheck = pyxxusb.VME_register_write(self.devID, 8, 0x0000) #sets the readout trigger delay
-        writecheck2 = 2
+        time.sleep(1)
+        writecheck = 2 #pyxxusb.VME_register_write(self.devID, 0x8, 0x0) #sets the readout trigger delay
+        time.sleep(1)
+        writecheck2 = 2#pyxxusb.VME_register_write(self.devID,0x4, 0x01B0)
+        time.sleep(1)
+        #print(writecheck2)
+        bulkset = pyxxusb.VME_register_write(self.devID, 0x3C, 0x0000FFFF)
+        #print(bulkset)
         if writecheck < 0 or writecheck2 < 0:
             self.errorText.config(state='normal')
             self.errorText.insert(END, 'DAQ Settings failed to set!')
             self.errorText.config(state=DISABLED)
-        self.stack_DAQ()  # writes the stack to the memory
 
         # setting TDC settings
-        self.sendCODE(0x0E, 0x0400102E, 0x0000)# set mode trigger mode now in cont mode
-        #self.sendCODE(0x0E, 0x0400102E, 0x0300) #clear token
-        #ETTenable = pyxxusb.VME_write_16(self.devID,0x0E,0x04001000,0x0220) #enable extended time
-        #print(ETTenable)
-        self.sendCODE(0x0E, 0x0400102E, 0x3100)  # disable/enable headers for testing
-        self.sendCODE(0x0E, 0x0400102E, 0x3600)  # disable/enable error markers
-        self.sendCODE(0x0E, 0x0400102E, 0x3700)  # enable error bypass
-        self.set_offset(0x0E, 0x0400102E, 0xFE70)  # sets offset to -400 cycles or -10 microseconds
-        self.set_window_width(0x0E, 0x0400102E,0x015E)  # sets window width to 350 cycles (8.7 microseconds now)
-        self.set_reject(0x0E, 0x0400102E,0x0002)  # sets reject margin
-        self.sendCODE(0x0E, 0x0400102E, 0x1400)  # subtract trigger offset
-        self.sendCODE(0x0E,0x0400102E,0x4300) #enable all channels
-        self.sendCODE(0x0E,0x0400102E,0x4000) #enable channel 0
-        self.sendCODE(0x0E,0x0400102E,0x4001) #enable channel 1
-        self.sendCODE(0x0E,0x0400102E,0x4002) #enable channel 3
+        #self.sendCODE(0x0E, 0x0400102E, 0x3100)  # disable/enable headers for testing
+        #self.sendCODE(0x0E, 0x0400102E, 0x3600)  # disable/enable error markers
+        #self.sendCODE(0x0E, 0x0400102E, 0x3700)  # enable error bypass
+        #pyxxusb.VME_write_16(self.devID,0x0E,0x0400102E,0x1500)
+        #self.set_offset(0x0E, 0x0400102E, 0xFE70)  # sets offset to -400 cycles or -10 microseconds
+        time.sleep(1)
+        pyxxusb.VME_write_16(self.devID,0x0E,0x0400102E,0x1100)
+        time.sleep(1)
+        pyxxusb.VME_write_16(self.devID,0x0E,0x0400102E,-400)
+        time.sleep(1)
+        pyxxusb.VME_write_16(self.devID,0x0E,0x0400102E,0x1000)
+        time.sleep(1)
+        pyxxusb.VME_write_16(self.devID,0x0E,0x0400102E,200)
+        time.sleep(1)
+        pyxxusb.VME_write_16(self.devID,0x0E,0x0400102E,0x1300)
+        time.sleep(1)
+        pyxxusb.VME_write_16(self.devID,0x0E,0x0400102E,2)
+        time.sleep(1)
+        #pyxxusb.VME_write_16(self.devID,0x0E,0x0400102E,0x1400)
+        #time.sleep(1)
+
+        #self.set_window_width(0x0E, 0x0400102E,0x015E)  # sets window width to 350 cycles (8.7 microseconds now)
+        #self.set_reject(0x0E, 0x0400102E,0x0001)  # sets reject margin
+        #self.sendCODE(0x0E, 0x0400102E, 0x1400)  # subtract trigger offset
+        #self.sendCODE(0x09,0x0400102E,0x4300) #disable all channels
+        #self.sendCODE(0x09,0x0400102E,0x4000) #enable channel 0
+        #self.sendCODE(0x09,0x0400102E,0x4001) #enable channel 1
+        #self.sendCODE(0x0E,0x0400102E,0x4002) #enable channel 3
         #globset = pyxxusb.xxusb_register_write(self.devID, 0x4, 0x01A0)
         #print(globset)
         self.settingsStatus.config(state='normal')
@@ -150,6 +170,14 @@ class main_DAQ:
             self.errorText.config(state=DISABLED)
         return
 
+    def sendCODE32(self,AM, location, code):  # function that writes and reads OPCODE for the TDC
+        writecheck = pyxxusb.VME_write_32(self.devID, AM, location, code)
+        if writecheck < 0:
+            self.errorText.config(state='normal')
+            self.errorText.insert(END, 'DAQ Settings failed to set an OPCODE!' + str(code))
+            self.errorText.config(state=DISABLED)
+        return
+
     def sendCODE(self,AM, location, code):  # function that writes and reads OPCODE for the TDC
         writecheck = pyxxusb.VME_write_16(self.devID, AM, location, code)
         if writecheck < 0:
@@ -179,20 +207,20 @@ class main_DAQ:
         #print(readdata[:20])
         return readdataOut
 
-    def read_buffer(self):  # read whats in the buffer and outputs the array
-        readArray = pyxxusb.new_longArray(8192) #array must be long if reading 32 or short if reading 16
+    def read_buffer(self):  # read what is in the buffer and outputs the array
+        readArray = pyxxusb.new_shortArray(8192) #array must be long if reading 32 or short if reading 16
         numberread = pyxxusb.xxusb_bulk_read(self.devID, readArray, 8192, 1000)
-        readdata = [np.binary_repr(pyxxusb.longArray_getitem(readArray, i),width=32) for i in range(numberread//2)]
-        hexinfo = [hex(pyxxusb.longArray_getitem(readArray,i)) for i in range(numberread//2)]
+        readdata = [np.binary_repr(pyxxusb.shortArray_getitem(readArray, i),width=16) for i in range(numberread//2)]
+        #hexinfo = [hex(pyxxusb.longArray_getitem(readArray,i)) for i in range(numberread//2)]
         #print(hexinfo[:100])
         #print(readdata[:100])
-        #readdataOut = np.array([readdata[i+1] + readdata[i] for i in np.arange(0, len(readdata)-1, 2)]) #was i+1 and i
+        readdataOut = np.array([readdata[i+1] + readdata[i] for i in np.arange(0, len(readdata)-1, 2)]) #was i+1 and i
         #print(readdataOut[:100])
         #self.drain_FIFO()
-        return readdata
+        return readdataOut
 
     def DAQ_mode_on(self):
-        bytes_written = pyxxusb.xxusb_register_write(self.devID, 0x1, 0x0001)
+        bytes_written = pyxxusb.xxusb_register_write(self.devID, 1, int(True))
         if bytes_written < 0:
             self.errorText.config(state='normal')
             self.errorText.insert(END, 'DAQ mode on write failed')
@@ -202,7 +230,7 @@ class main_DAQ:
         return
 
     def DAQ_mode_off(self):
-        bytes_written = pyxxusb.xxusb_register_write(self.devID, 0x1, 0x0000)
+        bytes_written = pyxxusb.xxusb_register_write(self.devID, 1, int(False))
         if bytes_written < 0:
             self.errorText.config(state='normal')
             self.errorText.insert(END, 'DAQ mode off write failed')
@@ -264,6 +292,10 @@ class main_DAQ:
         pyxxusb.VME_read_16(self.devID,0x0E,0x0400102C,listen)
         return
 
+    def force_reset(self):
+        pyxxusb.VME_register_write(self.devID,1,0x0000)
+        return
+
     def start_func(self):  # start/run read TDC
         self.runningDAQ=True
         self.runningText.config(state='normal')
@@ -273,8 +305,11 @@ class main_DAQ:
         self.runningText.update()
         self.runningText.config(state=DISABLED)
         self.DAQ_mode_on()
+        #time.sleep(3)
+        #self.drain_FIFO()
+        time.sleep(3)
         finalOutData = self.read_FIFO()
-        for i in range(60):
+        for i in range(30):
             finalOutData = np.append(finalOutData,self.read_FIFO())
             time.sleep(0.1)
         self.stop_func()
@@ -303,7 +338,7 @@ class main_DAQ:
             if str(tdcdata[i][:5]) == '00001':
                 tdcheader = np.append(tdcheader,tdcdata[i])
             if str(tdcdata[i][:6]) == '000000' and str(tdcdata[i]) != '00000000000000000000000000000000':
-                if int(tdcdata[i][6:11],2)==0 or int(tdcdata[i][6:11],2)==1 or int(tdcdata[i][6:11],2)==2:
+                if int(tdcdata[i][6:11],2)==0 or int(tdcdata[i][6:11],2)==5:
                     tdcmeasured = np.append(tdcmeasured,tdcdata[i])
             if str(tdcdata[i][:5]) == '00100':
                 tdcerror = np.append(tdcerror, tdcdata[i])
@@ -317,12 +352,12 @@ class main_DAQ:
         channel = np.array([int((tdcmeasured[i][6:11]),2) for i in range(len(tdcmeasured))]) #6:11
         measure = np.array([25*int(tdcmeasured[i][11:],2)/1000000 for i in range(len(tdcmeasured))]) #11:
         for i in range(len(tdcmeasured)):
-            if channel[i]==0:
+            if channel[i]==0:# and measure[i]>3.2 and measure[i]<3.3:
                 plotdata0 = np.append(plotdata0,measure[i])
-            elif channel[i]==1:
+            if channel[i]==5:# and measure[i]>3.2 and measure[i]<3.3:
                 plotdata1 = np.append(plotdata1,measure[i])
-            elif channel[i]==2:
-                plotdata2 = np.append(plotdata2,measure[i])
+            #elif channel[i]==2:
+            #    plotdata2 = np.append(plotdata2,measure[i])
         #print(measure[:100])
         #print(channel[:100])
         #print(len(tdcmeasured)/len(finalOutData))
@@ -345,16 +380,15 @@ class main_DAQ:
         #print(np.count_nonzero((difference>=0.001) & (difference<=1.0)))
         #print(np.count_nonzero((difference >= 1.0) & (difference <= 2.0)))
         #print(np.count_nonzero((difference >= 2.5) & (difference <= 3.5)))
-        print(plotdata0[:50])
-        print(plotdata1[:50])
-        print(plotdata2[:50])
+        print(plotdata0[-50:])
+        print(plotdata1[-50:])
         fig = pltex.histogram(x=plotdata0,nbins=10000,labels={'x': 'microseconds', 'y': 'counts'},range_x=[0,10])
         fig.add_histogram(x=plotdata1,nbinsx=10000)
-        fig.add_histogram(x=plotdata2,nbinsx=10000)
         fig.show()
         fig2 = pltex.scatter(y=channel,x=np.arange(0,len(channel)))
         fig2.show()
 
-root = Tk()
+#root = Tk()
+root = customtkinter.CTk()
 my_gui = main_DAQ(root)
 root.mainloop()
