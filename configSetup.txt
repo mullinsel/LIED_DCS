@@ -1,16 +1,19 @@
 Configure file for DAQ
+Input values are in microseconds
+Must be in format of "SettingName = input"
 
 TDC address = 0x04000000
 Trigger mode = True
 Offset = -10
 Window = 8.7
 Reject margin = 2
-Trigger delay = 0
-Enable TDC headers = True
-Enable TDC warnings = True
-Enable TDC bypass warning = True
+Trigger subtraction = True
+Trigger delay read = 0
+Enable TDC headers = False
+Enable TDC warnings = False
+Enable TDC bypass warning = False
 Channels = 0,1,2
-Stack = [0x0005,0x0000,0x0109,0x0000,0x0000,0x0400]
+Stack = 0x0005,0x0002,0x0109,0x0000,0x0000,0x0400
 ETT mode = False
 
 end of setup file

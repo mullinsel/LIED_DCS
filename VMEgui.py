@@ -1,4 +1,3 @@
-import sys
 import os
 import plotly.express as pltex
 import numpy as np
@@ -77,7 +76,7 @@ class main_DAQ:
         return
 
     def stack_DAQ(self):
-        stackin = [0x0005, 0x0002, 0x0109, 0x0000, 0x0000, 0x0400] #stack to be written
+        stackin = [0x0005, 0x0000, 0x0109, 0x0000, 0x0000, 0x0400] #stack to be written
         stackdata = pyxxusb.new_longArray(len(stackin)) #array containing the stack info to be written
         for i in range(len(stackin)):
             pyxxusb.longArray_setitem(stackdata, i, stackin[i])
@@ -89,12 +88,18 @@ class main_DAQ:
         return
 
     def setup_config(self):
+        self.force_reset()
+        time.sleep(1)
         self.stack_DAQ()
         #VME settings
+
         time.sleep(1)
         writecheck = 2 #pyxxusb.VME_register_write(self.devID, 0x8, 0x02) #sets the readout trigger delay
-        writecheck2 =2# pyxxusb.VME_register_write(self.devID,0x4, 0x01B0)
-        bulkset = pyxxusb.VME_register_write(self.devID, 60, 3320)
+        writecheck2 = pyxxusb.VME_register_write(self.devID,4, 176)
+        time.sleep(1)
+        bulkset = pyxxusb.VME_register_write(self.devID, 60, 1023)
+        time.sleep(1)
+        #pyxxusb.VME_register_write(self.devID,36,4095)
         print(bulkset)
         if writecheck < 0 or writecheck2 < 0:
             self.errorText.config(state='normal')
@@ -102,6 +107,10 @@ class main_DAQ:
             self.errorText.config(state=DISABLED)
 
         # setting TDC settings
+        time.sleep(1)
+        pyxxusb.VME_write_16(self.devID,0x0E,0x0400102E,0x3100)
+        time.sleep(1)
+        pyxxusb.VME_write_16(self.devID,0x0E,0x0400102E,0x3600)
         #self.sendCODE(0x0E, 0x0400102E, 0x3100)  # disable/enable headers for testing
         #self.sendCODE(0x0E, 0x0400102E, 0x3600)  # disable/enable error markers
         #self.sendCODE(0x0E, 0x0400102E, 0x3700)  # enable error bypass
@@ -122,8 +131,8 @@ class main_DAQ:
         time.sleep(1)
         pyxxusb.VME_write_16(self.devID,0x0E,0x0400102E,0x1400)
         time.sleep(1)
-        pyxxusb.VME_write_16(self.devID, 0x0E, 0x0400102E, 1)
-        time.sleep(1)
+        #pyxxusb.VME_write_16(self.devID, 0x0E, 0x0400102E, 1)
+        #time.sleep(1)
         #self.set_window_width(0x0E, 0x0400102E,0x015E)  # sets window width to 350 cycles (8.7 microseconds now)
         #self.set_reject(0x0E, 0x0400102E,0x0001)  # sets reject margin
         #self.sendCODE(0x0E, 0x0400102E, 0x1400)  # subtract trigger offset
@@ -131,8 +140,6 @@ class main_DAQ:
         #self.sendCODE(0x09,0x0400102E,0x4000) #enable channel 0
         #self.sendCODE(0x09,0x0400102E,0x4001) #enable channel 1
         #self.sendCODE(0x0E,0x0400102E,0x4002) #enable channel 3
-        #globset = pyxxusb.xxusb_register_write(self.devID, 0x4, 0x01A0)
-        #print(globset)
         self.settingsStatus.config(state='normal')
         self.settingsStatus.delete("1.0",END)
         self.settingsStatus.insert(END,"Settings Written")
@@ -168,14 +175,6 @@ class main_DAQ:
             self.errorText.config(state=DISABLED)
         return
 
-    def sendCODE32(self,AM, location, code):  # function that writes and reads OPCODE for the TDC
-        writecheck = pyxxusb.VME_write_32(self.devID, AM, location, code)
-        if writecheck < 0:
-            self.errorText.config(state='normal')
-            self.errorText.insert(END, 'DAQ Settings failed to set an OPCODE!' + str(code))
-            self.errorText.config(state=DISABLED)
-        return
-
     def sendCODE(self,AM, location, code):  # function that writes and reads OPCODE for the TDC
         writecheck = pyxxusb.VME_write_16(self.devID, AM, location, code)
         if writecheck < 0:
@@ -194,7 +193,7 @@ class main_DAQ:
 
     def read_FIFO(self):
         readArray = pyxxusb.new_intArray(8192)  # array must be long if reading 32 or short if reading 16
-        numberread = pyxxusb.xxusb_usbfifo_read(self.devID, readArray, 8192, 1000)
+        numberread = pyxxusb.xxusb_usbfifo_read(self.devID, readArray, 8192, 10000)
         readdata = [np.binary_repr(pyxxusb.intArray_getitem(readArray, i), width=16) for i in range(numberread//2)]
         #data = np.array([])
         #for i in range(len(readdata)):
@@ -204,6 +203,19 @@ class main_DAQ:
         #hexinfo = [hex(pyxxusb.intArray_getitem(readArray, i)) for i in range(numberread // 2)]
         #print(readdata[:20])
         return readdataOut
+
+    def read_BLT(self):
+        readArray = pyxxusb.new_longArray(8192)  # array must be long if reading 32 or short if reading 16
+        numberread = pyxxusb.VME_BLT_read_32(self.devID,0x0B,40,0x04000000,readArray)
+        readdata = [np.binary_repr(pyxxusb.longArray_getitem(readArray, i), width=32) for i in range(numberread // 2)]
+        # data = np.array([])
+        # for i in range(len(readdata)):
+        #    if pyxxusb.intArray_getitem(readArray,i) != 0xc0c0:
+        #        data = np.append(data,np.binary_repr(pyxxusb.intArray_getitem(readArray,i),width=16))
+        #readdataOut = np.array([str(readdata[i + 1]) + str(readdata[i]) for i in np.arange(0, len(readdata) - 1, 2)])  # was i+1 and i
+        # hexinfo = [hex(pyxxusb.intArray_getitem(readArray, i)) for i in range(numberread // 2)]
+        # print(readdata[:20])
+        return readdata
 
     def read_buffer(self):  # read what is in the buffer and outputs the array
         readArray = pyxxusb.new_shortArray(8192) #array must be long if reading 32 or short if reading 16
@@ -248,7 +260,7 @@ class main_DAQ:
         self.connectedText.config(state=DISABLED)
 
     def disconnect_func(self):
-        #self.force_reset()
+        self.force_reset()
         self.stop_func()
         pyxxusb.xxusb_reset_toggle(self.devID)
         pyxxusb.xxusb_device_close(self.devID)
@@ -285,13 +297,103 @@ class main_DAQ:
         self.runningText.insert(END, 'DAQ is not running')
         self.runningText.config(state=DISABLED)
 
-    def TDC_status(self):
-        listen=pyxxusb.new_longArray(32)
-        pyxxusb.VME_read_16(self.devID,0x0E,0x0400102C,listen)
+    def force_reset(self):
+        pyxxusb.xxusb_reset_toggle(self.devID)
+        time.sleep(1)
+        pyxxusb.VME_register_write(self.devID,1,4)
+        time.sleep(1)
+        pyxxusb.VME_register_write(self.devID,1,8)
+        time.sleep(1)
         return
 
-    def force_reset(self):
-        pyxxusb.VME_register_write(self.devID,1,0x0000)
+    def save_data(self,fileName,datatowrite):
+        if fileName in os.listdir():
+            with open(fileName,"a") as myfile:
+                myfile.write(str(datatowrite))
+        else:
+            with open(fileName,"w") as myfile:
+                myfile.write(str(datatowrite))
+        return
+
+    def parse_data(self,dataToParse):
+        #plotdata1 = np.array([])
+        #plotdata0 = np.array([])
+        outputData = np.array([])
+        #tdcdata = np.array([])
+        #headerglobal = np.array([])
+        #trailerglobal = np.array([])
+        #gtt = np.array([])
+        #for i in range(len(dataToParse)):
+        #    if str(dataToParse[i][:2])=='00':
+        #        tdcdata = np.append(tdcdata, dataToParse[i])
+        #    if str(dataToParse[i][:5]) == '01000':
+        #        headerglobal = np.append(headerglobal,dataToParse[i])
+        #    if str(dataToParse[i][:5]) == '10000':
+        #        trailerglobal = np.append(trailerglobal,dataToParse[i])
+        #    if str(dataToParse[i][:5]) == '10001':
+        #        gtt = np.append(gtt, dataToParse[i])
+        #tdcheader = np.array([])
+        tdcmeasured = np.array([])
+        #tdcerror = np.array([])
+        #tdctrailer = np.array([])
+        #np.savetxt(self.saveDirectory.get(), finalOutData, fmt="%s")
+        for i in range(len(dataToParse)):
+            #if str(tdcdata[i][:5]) == '00001':
+            #    tdcheader = np.append(tdcheader,tdcdata[i])
+            if str(dataToParse[i][:6]) == '000000' and str(dataToParse[i]) != '00000000000000000000000000000000':
+                if int(dataToParse[i][6:11],2)==0 or int(dataToParse[i][6:11],2)==5:
+                    tdcmeasured = np.append(tdcmeasured,dataToParse[i])
+            #if str(tdcdata[i][:5]) == '00100':
+            #3    tdcerror = np.append(tdcerror, tdcdata[i])
+            #if str(tdcdata[i][:5]) == '00011':
+            #    tdctrailer = np.append(tdctrailer,tdcdata[i])
+        #print(tdcheader[:50])
+        #print(tdctrailer[:50])
+        #print(tdcmeasured[:50])
+        #headerevent = [int(i[5:27],2) for i in headerglobal]
+        #headergeo = [int(i[27:],2) for i in headerglobal]
+        channel = np.array([int((tdcmeasured[i][6:11]),2) for i in range(len(tdcmeasured))]) #6:11
+        measure = np.array([25*int(tdcmeasured[i][11:],2)/1000000 for i in range(len(tdcmeasured))]) #11:
+        for i in range(len(tdcmeasured)):
+            if channel[i]==0 or channel[i]==5:
+                #plotdata0 = np.append(plotdata0,measure[i])
+                outputData = np.append(outputData,(channel[i],measure[i]))
+            #if channel[i]==5:
+            #    plotdata1 = np.append(plotdata1,measure[i])
+            #elif channel[i]==2:
+            #    plotdata2 = np.append(plotdata2,measure[i])
+        #print(measure[:100])
+        #print(channel[:100])
+        #print(len(tdcmeasured)/len(finalOutData))
+        #print(tdcmeasured[:50])
+        #print(plotdata0[:100])
+        #print(plotdata1[:100])
+        #print('channels')
+        #print(channel[:50])
+        #print(measure[:50])
+        #zerolocations = np.where(channel==0)[0]
+        #print(zerolocations[:50])
+        #difference=np.array([])
+        #for i in np.arange(0,len(zerolocations)-1):
+        #    datapoints = np.abs((zerolocations[i+1]-zerolocations[i])-1)
+        #    reference = measure[zerolocations[i]]
+        #    for j in range(datapoints):
+        #        hitdiff = -reference+measure[int(zerolocations[i]+1+j)]
+        #        if hitdiff >=.001 and hitdiff <=5:
+        #            difference = np.append(difference,hitdiff)
+        #print(np.count_nonzero((difference>=0.001) & (difference<=1.0)))
+        #print(np.count_nonzero((difference >= 1.0) & (difference <= 2.0)))
+        #print(np.count_nonzero((difference >= 2.5) & (difference <= 3.5)))
+        print(len(dataToParse))
+        print((len(outputData)/2)/len(dataToParse))
+        return outputData
+
+    def collect_data(self):
+        if self.runningDAQ == True:
+            for i in range(10):
+                plotdata0, plotdata1 = self.parse_data(self.read_FIFO())
+                self.save_data(self.saveDirectory.get(), plotdata0)
+                time.sleep(0.1)
         return
 
     def start_func(self):  # start/run read TDC
@@ -303,17 +405,35 @@ class main_DAQ:
         self.runningText.update()
         self.runningText.config(state=DISABLED)
         self.DAQ_mode_on()
-        #time.sleep(3)
-        #self.drain_FIFO()
-        time.sleep(1)
-        finalOutData = self.read_FIFO()
-        for i in range(10):
-            finalOutData = np.append(finalOutData,self.read_FIFO())
-            time.sleep(0.1)
+        time.sleep(5)
+        #finalOutData = self.read_FIFO()
+        #fastData = pyxxusb.new_longArray(8192)
+        #pyxxusb.VME_BLT_read_32(self.devID,0x0B,40,0x04000000,fastData)
+        #outfast = [int(pyxxusb.longArray_getitem(fastData,i) for i in range(8192)]
+        #print(outfast)
+        for i in range(100):
+            data = self.parse_data(self.read_buffer())
+            if i == 0:
+                fileName = self.saveDirectory.get()
+                if fileName in os.listdir():
+                    print('error')
+                else:
+                    #file does not exist so make one
+                    myFile = open(fileName,"w")
+                    for i in np.arange(0,len(data)-1,2):
+                        myFile.write(str(int(data[i]))+', '+str(data[i+1])+'\n')
+                    myFile.close()
+            else:
+                with open(fileName,"a") as myFile:
+                    for i in np.arange(0,len(data)-1,2):
+                        myFile.write(str(int(data[i]))+', '+str(data[i+1])+'\n')
+            #finalOutData = np.append(finalOutData,self.read_FIFO())
+            #plotdata0,plotdata1 = self.parse_data(self.read_FIFO())
+            #self.save_data(self.saveDirectory.get(),plotdata0)
         self.stop_func()
+        '''
         plotdata1 = np.array([])
         plotdata0 = np.array([])
-        plotdata2 = np.array([])
         tdcdata = np.array([])
         headerglobal = np.array([])
         trailerglobal = np.array([])
@@ -331,7 +451,7 @@ class main_DAQ:
         tdcmeasured = np.array([])
         tdcerror = np.array([])
         tdctrailer = np.array([])
-        np.savetxt(self.saveDirectory.get(), finalOutData, fmt="%s")
+        #np.savetxt(self.saveDirectory.get(), finalOutData, fmt="%s")
         for i in range(len(tdcdata)):
             if str(tdcdata[i][:5]) == '00001':
                 tdcheader = np.append(tdcheader,tdcdata[i])
@@ -378,15 +498,28 @@ class main_DAQ:
         #print(np.count_nonzero((difference>=0.001) & (difference<=1.0)))
         #print(np.count_nonzero((difference >= 1.0) & (difference <= 2.0)))
         #print(np.count_nonzero((difference >= 2.5) & (difference <= 3.5)))
-        print(plotdata0[-50:])
-        print(plotdata1[-50:])
-        fig = pltex.histogram(x=plotdata0,nbins=10000,labels={'x': 'microseconds', 'y': 'counts'},range_x=[0,10])
-        fig.add_histogram(x=plotdata1,nbinsx=10000)
-        fig.show()
-        fig2 = pltex.scatter(y=channel,x=np.arange(0,len(channel)))
-        fig2.show()
+        '''
 
-#root = Tk()
+        print('done')
+        print(data)
+        data0 = np.array([])
+        data5 = np.array([])
+        with open(self.saveDirectory.get(),"r") as readFile:
+            test = readFile.read()
+            test = test.split('\n')
+            for i in test:
+                elements = i.split(', ')
+                if elements[0] == str(0):
+                    data0 = np.append(data0,float(elements[1]))
+                if elements[0] == str(5):
+                    data5 = np.append(data5, float(elements[1]))
+
+        fig = pltex.histogram(x=data0,nbins=10000,labels={'x': 'microseconds', 'y': 'counts'},range_x=[0,10])
+        fig.add_histogram(x=data5,nbinsx=10000)
+        fig.show()
+
+
+
 root = customtkinter.CTk()
 my_gui = main_DAQ(root)
 root.mainloop()
