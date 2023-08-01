@@ -75,8 +75,8 @@ class main_DAQ:
         self.master.destroy()
         return
 
-    def stack_DAQ(self):
-        stackin = [0x0005, 0x0000, 0x0109, 0x0000, 0x0000, 0x0400] #stack to be written
+    def stack_DAQ(self): #[0x0005,0x0000,0x050B,0x6000,0x0000,0x0400]
+        stackin = [0x0007,0x0000,0x050B,0xFF00,0x0250,0x0000,0x0000,0x0400]#[0x000D, 0x0000, 0x0109, 0x0002, 0x0000, 0x0400,0x0109,0x0048,0x0000,0x0400,0xFFFF,0x0028,0xFFFF,0x001F] #stack to be written
         stackdata = pyxxusb.new_longArray(len(stackin)) #array containing the stack info to be written
         for i in range(len(stackin)):
             pyxxusb.longArray_setitem(stackdata, i, stackin[i])
@@ -89,57 +89,44 @@ class main_DAQ:
 
     def setup_config(self):
         self.force_reset()
-        time.sleep(1)
+        time.sleep(0.5)
         self.stack_DAQ()
         #VME settings
-
-        time.sleep(1)
-        writecheck = 2 #pyxxusb.VME_register_write(self.devID, 0x8, 0x02) #sets the readout trigger delay
-        writecheck2 = pyxxusb.VME_register_write(self.devID,4, 176)
-        time.sleep(1)
-        bulkset = pyxxusb.VME_register_write(self.devID, 60, 1023)
-        time.sleep(1)
-        #pyxxusb.VME_register_write(self.devID,36,4095)
-        print(bulkset)
-        if writecheck < 0 or writecheck2 < 0:
+        #time.sleep(0.5)
+        writecheck = 2#pyxxusb.VME_register_write(self.devID, 8, 50) #sets the readout trigger delay
+        #time.sleep(0.5)
+        pyxxusb.VME_register_write(self.devID, 60, 1023)
+        #time.sleep(0.5)
+        if writecheck < 0:
             self.errorText.config(state='normal')
             self.errorText.insert(END, 'DAQ Settings failed to set!')
             self.errorText.config(state=DISABLED)
 
         # setting TDC settings
-        time.sleep(1)
-        pyxxusb.VME_write_16(self.devID,0x0E,0x0400102E,0x3100)
-        time.sleep(1)
-        pyxxusb.VME_write_16(self.devID,0x0E,0x0400102E,0x3600)
-        #self.sendCODE(0x0E, 0x0400102E, 0x3100)  # disable/enable headers for testing
-        #self.sendCODE(0x0E, 0x0400102E, 0x3600)  # disable/enable error markers
-        #self.sendCODE(0x0E, 0x0400102E, 0x3700)  # enable error bypass
-        #pyxxusb.VME_write_16(self.devID,0x0E,0x0400102E,0x1500)
-        #self.set_offset(0x0E, 0x0400102E, 0xFE70)  # sets offset to -400 cycles or -10 microseconds
-        time.sleep(1)
+        time.sleep(0.5)
+        pyxxusb.VME_write_16(self.devID,0x0E,0x0400102E,0x3100) #disable headers
+        time.sleep(0.5)
+        pyxxusb.VME_write_16(self.devID,0x0E,0x0400102E,0x3600) #diable error marks
+        time.sleep(0.5)
         pyxxusb.VME_write_16(self.devID,0x0E,0x0400102E,0x1100)
-        time.sleep(1)
-        pyxxusb.VME_write_16(self.devID,0x0E,0x0400102E,-500)
-        time.sleep(1)
+        time.sleep(0.5)
+        pyxxusb.VME_write_16(self.devID,0x0E,0x0400102E,-350)
+        time.sleep(0.5)
         pyxxusb.VME_write_16(self.devID,0x0E,0x0400102E,0x1000)
-        time.sleep(1)
-        pyxxusb.VME_write_16(self.devID,0x0E,0x0400102E,350)
-        time.sleep(1)
+        time.sleep(0.5)
+        pyxxusb.VME_write_16(self.devID,0x0E,0x0400102E,300)
+        time.sleep(0.5)
         pyxxusb.VME_write_16(self.devID,0x0E,0x0400102E,0x1300)
-        time.sleep(1)
+        time.sleep(0.5)
         pyxxusb.VME_write_16(self.devID,0x0E,0x0400102E,2)
-        time.sleep(1)
-        pyxxusb.VME_write_16(self.devID,0x0E,0x0400102E,0x1400)
-        time.sleep(1)
-        #pyxxusb.VME_write_16(self.devID, 0x0E, 0x0400102E, 1)
-        #time.sleep(1)
-        #self.set_window_width(0x0E, 0x0400102E,0x015E)  # sets window width to 350 cycles (8.7 microseconds now)
-        #self.set_reject(0x0E, 0x0400102E,0x0001)  # sets reject margin
-        #self.sendCODE(0x0E, 0x0400102E, 0x1400)  # subtract trigger offset
-        #self.sendCODE(0x09,0x0400102E,0x4300) #disable all channels
-        #self.sendCODE(0x09,0x0400102E,0x4000) #enable channel 0
-        #self.sendCODE(0x09,0x0400102E,0x4001) #enable channel 1
-        #self.sendCODE(0x0E,0x0400102E,0x4002) #enable channel 3
+        time.sleep(0.5)
+        pyxxusb.VME_write_16(self.devID,0x0E,0x0400102E,0x1400) #subtract trigger
+        time.sleep(0.5)
+        pyxxusb.VME_write_16(self.devID,0x0E,0x0400102E,0x3700) #enable bypass
+        time.sleep(0.5)
+
+        writecheck2 = pyxxusb.VME_register_write(self.devID,4, 160)
+        time.sleep(0.5)
         self.settingsStatus.config(state='normal')
         self.settingsStatus.delete("1.0",END)
         self.settingsStatus.insert(END,"Settings Written")
@@ -147,7 +134,7 @@ class main_DAQ:
         self.settingsStatus.update()
         self.settingsStatus.config(state=DISABLED)
         return
-
+    '''
     def set_window_width(self,AM, location,width):
         writecheck = pyxxusb.VME_write_16(self.devID, AM, location, 0x1000)
         writecheck2 = pyxxusb.VME_write_16(self.devID, AM, location,width)
@@ -182,7 +169,7 @@ class main_DAQ:
             self.errorText.insert(END, 'DAQ Settings failed to set an OPCODE!' + str(code))
             self.errorText.config(state=DISABLED)
         return
-
+    '''
     def drain_FIFO(self):  # clears the buffer
         shortData = pyxxusb.new_intArray(8192)
         loop = 0
@@ -193,7 +180,7 @@ class main_DAQ:
 
     def read_FIFO(self):
         readArray = pyxxusb.new_intArray(8192)  # array must be long if reading 32 or short if reading 16
-        numberread = pyxxusb.xxusb_usbfifo_read(self.devID, readArray, 8192, 10000)
+        numberread = pyxxusb.xxusb_usbfifo_read(self.devID, readArray, 8192, 100000)
         readdata = [np.binary_repr(pyxxusb.intArray_getitem(readArray, i), width=16) for i in range(numberread//2)]
         #data = np.array([])
         #for i in range(len(readdata)):
@@ -204,22 +191,9 @@ class main_DAQ:
         #print(readdata[:20])
         return readdataOut
 
-    def read_BLT(self):
-        readArray = pyxxusb.new_longArray(8192)  # array must be long if reading 32 or short if reading 16
-        numberread = pyxxusb.VME_BLT_read_32(self.devID,0x0B,40,0x04000000,readArray)
-        readdata = [np.binary_repr(pyxxusb.longArray_getitem(readArray, i), width=32) for i in range(numberread // 2)]
-        # data = np.array([])
-        # for i in range(len(readdata)):
-        #    if pyxxusb.intArray_getitem(readArray,i) != 0xc0c0:
-        #        data = np.append(data,np.binary_repr(pyxxusb.intArray_getitem(readArray,i),width=16))
-        #readdataOut = np.array([str(readdata[i + 1]) + str(readdata[i]) for i in np.arange(0, len(readdata) - 1, 2)])  # was i+1 and i
-        # hexinfo = [hex(pyxxusb.intArray_getitem(readArray, i)) for i in range(numberread // 2)]
-        # print(readdata[:20])
-        return readdata
-
     def read_buffer(self):  # read what is in the buffer and outputs the array
         readArray = pyxxusb.new_shortArray(8192) #array must be long if reading 32 or short if reading 16
-        numberread = pyxxusb.xxusb_bulk_read(self.devID, readArray, 8192, 1000)
+        numberread = pyxxusb.xxusb_bulk_read(self.devID, readArray, 8192, 100000)
         readdata = [np.binary_repr(pyxxusb.shortArray_getitem(readArray, i),width=16) for i in range(numberread//2)]
         #hexinfo = [hex(pyxxusb.longArray_getitem(readArray,i)) for i in range(numberread//2)]
         #print(hexinfo[:100])
@@ -302,7 +276,11 @@ class main_DAQ:
         time.sleep(1)
         pyxxusb.VME_register_write(self.devID,1,4)
         time.sleep(1)
+        pyxxusb.VME_register_write(self.devID,1,0)
+        time.sleep(1)
         pyxxusb.VME_register_write(self.devID,1,8)
+        time.sleep(1)
+        pyxxusb.VME_register_write(self.devID,1,0)
         time.sleep(1)
         return
 
@@ -316,9 +294,8 @@ class main_DAQ:
         return
 
     def parse_data(self,dataToParse):
-        #plotdata1 = np.array([])
-        #plotdata0 = np.array([])
         outputData = np.array([])
+        outputChannel = np.array([])
         #tdcdata = np.array([])
         #headerglobal = np.array([])
         #trailerglobal = np.array([])
@@ -340,7 +317,7 @@ class main_DAQ:
         for i in range(len(dataToParse)):
             #if str(tdcdata[i][:5]) == '00001':
             #    tdcheader = np.append(tdcheader,tdcdata[i])
-            if str(dataToParse[i][:6]) == '000000' and str(dataToParse[i]) != '00000000000000000000000000000000':
+            if str(dataToParse[i][:5]) == '00000' and str(dataToParse[i]) != '00000000000000000000000000000000':
                 if int(dataToParse[i][6:11],2)==0 or int(dataToParse[i][6:11],2)==5:
                     tdcmeasured = np.append(tdcmeasured,dataToParse[i])
             #if str(tdcdata[i][:5]) == '00100':
@@ -356,8 +333,8 @@ class main_DAQ:
         measure = np.array([25*int(tdcmeasured[i][11:],2)/1000000 for i in range(len(tdcmeasured))]) #11:
         for i in range(len(tdcmeasured)):
             if channel[i]==0 or channel[i]==5:
-                #plotdata0 = np.append(plotdata0,measure[i])
-                outputData = np.append(outputData,(channel[i],measure[i]))
+                outputData = np.append(outputData,measure[i])
+                outputChannel = np.append(outputChannel,channel[i])
             #if channel[i]==5:
             #    plotdata1 = np.append(plotdata1,measure[i])
             #elif channel[i]==2:
@@ -385,8 +362,7 @@ class main_DAQ:
         #print(np.count_nonzero((difference >= 1.0) & (difference <= 2.0)))
         #print(np.count_nonzero((difference >= 2.5) & (difference <= 3.5)))
         print(len(dataToParse))
-        print((len(outputData)/2)/len(dataToParse))
-        return outputData
+        return outputChannel, outputData
 
     def collect_data(self):
         if self.runningDAQ == True:
@@ -404,32 +380,61 @@ class main_DAQ:
         self.runningText.insert(END,'DAQ is running')
         self.runningText.update()
         self.runningText.config(state=DISABLED)
-        self.DAQ_mode_on()
-        time.sleep(5)
-        #finalOutData = self.read_FIFO()
-        #fastData = pyxxusb.new_longArray(8192)
-        #pyxxusb.VME_BLT_read_32(self.devID,0x0B,40,0x04000000,fastData)
-        #outfast = [int(pyxxusb.longArray_getitem(fastData,i) for i in range(8192)]
-        #print(outfast)
-        for i in range(100):
-            data = self.parse_data(self.read_buffer())
+        starttime = time.time()
+        #self.DAQ_mode_on()
+        total_data = np.zeros((2,2097152))
+        #stackin = [0x0007,0x0000,0x010B,0xFF00,0x0250,0x0000,0x0000,0x0400] #[0x000D, 0x0000, 0x0109, 0x0002, 0x0000, 0x0400,0x0109,0x0048,0x0000,0x0400,0xFFFF,0x0028,0xFFFF,0x001F] #stack to be written
+        #stackdata = pyxxusb.new_longArray(len(stackin))
+        #pyxxusb.xxusb_stack_execute(self.devID,stackdata)
+        #readnumberfast = pyxxusb.VME_BLT_read_32(self.devID,0x0B,250,0x04000000,fastData)
+        #readdata = [np.binary_repr(pyxxusb.longArray_getitem(fastData, i), width=32) for i in range(readnumberfast)]
+        #readdataOutfast = readdata#np.array([str(readdata[i + 1]) + str(readdata[i]) for i in np.arange(0, len(readdata) - 1, 2)])  # was i+1 and i
+        #chanout = [int(readdataOutfast[i][6:11],2) for i in range(len(readdataOutfast))]
+        #dataout = [(25/1000000)*int(readdataOutfast[i][11:],2) for i in range(len(readdataOutfast))]
+        #print(readnumberfast)
+        #print(readdataOutfast)
+        #print(chanout)
+        #print(dataout)
+        # [0x000D, 0x0000, 0x0109, 0x0002, 0x0000, 0x0400,0x0109,0x0048,0x0000,0x0400,0xFFFF,0x0028,0xFFFF,0x001F] #stack to be written
+        fastData = pyxxusb.new_longArray(8192)
+
+        for i in range(50000):
+            #readnumberfast = pyxxusb.VME_BLT_read_32(self.devID, 0x0B, 250, 0x04000000, fastData)
+            #readdata = np.array([np.binary_repr(pyxxusb.longArray_getitem(stackdata, i), width=32) for i in range(readnumberfast//4)])
+            #pyxxusb.xxusb_stack_execute(self.devID, stackdata)
+            readnumberfast = pyxxusb.VME_BLT_read_32(self.devID, 0x0B, 250, 0x04000000, fastData)
+            readdata = [np.binary_repr(pyxxusb.longArray_getitem(fastData, i), width=32) for i in range(readnumberfast)]
+            dataChannel,datapoint = self.parse_data(readdata)#self.read_buffer())
             if i == 0:
                 fileName = self.saveDirectory.get()
                 if fileName in os.listdir():
-                    print('error')
+                    print('there is a file here')
                 else:
                     #file does not exist so make one
                     myFile = open(fileName,"w")
-                    for i in np.arange(0,len(data)-1,2):
-                        myFile.write(str(int(data[i]))+', '+str(data[i+1])+'\n')
+                    for i in np.arange(0,len(datapoint)-1,2):
+                        #myFile.write(str(int(dataChannel[i]))+', '+str(datapoint[i])+'\n')
+                        if datapoint[i] < 8 and datapoint[i] > 0.1:
+                            binNumber = int(1000000*(datapoint[i])/25)
+                            if int(dataChannel[i])==0:
+                                total_data[0][binNumber] += 1
+                            if int(dataChannel[i])==5:
+                                total_data[1][binNumber] += 1
                     myFile.close()
             else:
                 with open(fileName,"a") as myFile:
-                    for i in np.arange(0,len(data)-1,2):
-                        myFile.write(str(int(data[i]))+', '+str(data[i+1])+'\n')
-            #finalOutData = np.append(finalOutData,self.read_FIFO())
-            #plotdata0,plotdata1 = self.parse_data(self.read_FIFO())
-            #self.save_data(self.saveDirectory.get(),plotdata0)
+                    for i in np.arange(0,len(datapoint)-1,2):
+                        if float(datapoint[i]) < 8 and float(datapoint[i]) > 0.1:
+                            #myFile.write(str(int(dataChannel[i]))+', '+str(datapoint[i])+'\n')
+                            binNumber = int(1000000*(datapoint[i])/25)
+                            if int(dataChannel[i])==0:
+                                total_data[0][binNumber] += 1
+                            if int(dataChannel[i])==5:
+                                total_data[1][binNumber] += 1
+            if time.time()-starttime > 300:
+                break
+        totaltime = round(time.time()-starttime,2)
+        print(totaltime)
         self.stop_func()
         '''
         plotdata1 = np.array([])
@@ -499,11 +504,9 @@ class main_DAQ:
         #print(np.count_nonzero((difference >= 1.0) & (difference <= 2.0)))
         #print(np.count_nonzero((difference >= 2.5) & (difference <= 3.5)))
         '''
-
-        print('done')
-        print(data)
         data0 = np.array([])
         data5 = np.array([])
+        '''
         with open(self.saveDirectory.get(),"r") as readFile:
             test = readFile.read()
             test = test.split('\n')
@@ -513,12 +516,17 @@ class main_DAQ:
                     data0 = np.append(data0,float(elements[1]))
                 if elements[0] == str(5):
                     data5 = np.append(data5, float(elements[1]))
-
-        fig = pltex.histogram(x=data0,nbins=10000,labels={'x': 'microseconds', 'y': 'counts'},range_x=[0,10])
-        fig.add_histogram(x=data5,nbinsx=10000)
-        fig.show()
-
-
+        '''
+        #fig = pltex.histogram(x=data0,nbins=10000,labels={'x': 'microseconds', 'y': 'counts'},range_x=[0,7])
+        #fig.add_histogram(x=data5,nbinsx=10000)
+        #fig.show()
+        onepeaksum = np.sum(total_data[1][84000:86000])
+        print(onepeaksum)
+        print('DAQ eff')
+        print(onepeaksum/(totaltime*1*1000))
+        fig2 = pltex.scatter(y=total_data[0][:200000],x=np.arange(0,len(total_data[0][:200000])))
+        fig2.add_scatter(y=total_data[1][:200000],x=np.arange(0,len(total_data[1][:200000])))
+        fig2.show()
 
 root = customtkinter.CTk()
 my_gui = main_DAQ(root)
