@@ -76,7 +76,7 @@ class main_DAQ:
         return
 
     def stack_DAQ(self): #[0x0005,0x0000,0x050B,0x6000,0x0000,0x0400]
-        stackin = [0x0007,0x0000,0x050B,0xFF00,0x0250,0x0000,0x0000,0x0400]#[0x000D, 0x0000, 0x0109, 0x0002, 0x0000, 0x0400,0x0109,0x0048,0x0000,0x0400,0xFFFF,0x0028,0xFFFF,0x001F] #stack to be written
+        stackin = [0x0005,0x0000,0x0109,0x0000,0x0000,0x0400]#[0x000D, 0x0000, 0x0109, 0x0002, 0x0000, 0x0400,0x0109,0x0048,0x0000,0x0400,0xFFFF,0x0028,0xFFFF,0x001F] #stack to be written
         stackdata = pyxxusb.new_longArray(len(stackin)) #array containing the stack info to be written
         for i in range(len(stackin)):
             pyxxusb.longArray_setitem(stackdata, i, stackin[i])
@@ -95,8 +95,8 @@ class main_DAQ:
         #time.sleep(0.5)
         writecheck = 2#pyxxusb.VME_register_write(self.devID, 8, 50) #sets the readout trigger delay
         #time.sleep(0.5)
-        pyxxusb.VME_register_write(self.devID, 60, 1023)
-        #time.sleep(0.5)
+        #pyxxusb.VME_register_write(self.devID, 60, 511)
+        time.sleep(0.5)
         if writecheck < 0:
             self.errorText.config(state='normal')
             self.errorText.insert(END, 'DAQ Settings failed to set!')
@@ -122,8 +122,12 @@ class main_DAQ:
         time.sleep(0.5)
         pyxxusb.VME_write_16(self.devID,0x0E,0x0400102E,0x1400) #subtract trigger
         time.sleep(0.5)
-        pyxxusb.VME_write_16(self.devID,0x0E,0x0400102E,0x3700) #enable bypass
-        time.sleep(0.5)
+        #pyxxusb.VME_write_16(self.devID,0x0E,0x04001000,1) #4097 #sets large memory and BERRs on
+        #time.sleep(0.5)
+        #pyxxusb.VME_write_16(self.devID,0x0E,0x04001024,250)
+        #time.sleep(0.5)
+        #pyxxusb.VME_write_16(self.devID,0x0E,0x0400102E,0x3700) #enable bypass
+        #time.sleep(0.5)
 
         writecheck2 = pyxxusb.VME_register_write(self.devID,4, 160)
         time.sleep(0.5)
@@ -380,8 +384,10 @@ class main_DAQ:
         self.runningText.insert(END,'DAQ is running')
         self.runningText.update()
         self.runningText.config(state=DISABLED)
+
+        pyxxusb.VME_write_16(self.devID, 0x0E, 0x04001018, 1) #clears the TDC event counts
         starttime = time.time()
-        #self.DAQ_mode_on()
+        self.DAQ_mode_on()
         total_data = np.zeros((2,2097152))
         #stackin = [0x0007,0x0000,0x010B,0xFF00,0x0250,0x0000,0x0000,0x0400] #[0x000D, 0x0000, 0x0109, 0x0002, 0x0000, 0x0400,0x0109,0x0048,0x0000,0x0400,0xFFFF,0x0028,0xFFFF,0x001F] #stack to be written
         #stackdata = pyxxusb.new_longArray(len(stackin))
@@ -397,43 +403,56 @@ class main_DAQ:
         #print(dataout)
         # [0x000D, 0x0000, 0x0109, 0x0002, 0x0000, 0x0400,0x0109,0x0048,0x0000,0x0400,0xFFFF,0x0028,0xFFFF,0x001F] #stack to be written
         fastData = pyxxusb.new_longArray(8192)
-
+        TDCstatus = pyxxusb.new_longArray(3)
         for i in range(50000):
             #readnumberfast = pyxxusb.VME_BLT_read_32(self.devID, 0x0B, 250, 0x04000000, fastData)
             #readdata = np.array([np.binary_repr(pyxxusb.longArray_getitem(stackdata, i), width=32) for i in range(readnumberfast//4)])
             #pyxxusb.xxusb_stack_execute(self.devID, stackdata)
-            readnumberfast = pyxxusb.VME_BLT_read_32(self.devID, 0x0B, 250, 0x04000000, fastData)
-            readdata = [np.binary_repr(pyxxusb.longArray_getitem(fastData, i), width=32) for i in range(readnumberfast)]
-            dataChannel,datapoint = self.parse_data(readdata)#self.read_buffer())
-            if i == 0:
-                fileName = self.saveDirectory.get()
-                if fileName in os.listdir():
-                    print('there is a file here')
-                else:
-                    #file does not exist so make one
-                    myFile = open(fileName,"w")
-                    for i in np.arange(0,len(datapoint)-1,2):
-                        #myFile.write(str(int(dataChannel[i]))+', '+str(datapoint[i])+'\n')
-                        if datapoint[i] < 8 and datapoint[i] > 0.1:
-                            binNumber = int(1000000*(datapoint[i])/25)
-                            if int(dataChannel[i])==0:
-                                total_data[0][binNumber] += 1
-                            if int(dataChannel[i])==5:
-                                total_data[1][binNumber] += 1
-                    myFile.close()
-            else:
-                with open(fileName,"a") as myFile:
-                    for i in np.arange(0,len(datapoint)-1,2):
-                        if float(datapoint[i]) < 8 and float(datapoint[i]) > 0.1:
+            pyxxusb.VME_read_16(self.devID,0x09,0x04001002,TDCstatus)
+            statusout = [np.binary_repr(pyxxusb.longArray_getitem(TDCstatus,i),width=16) for i in range(3)]
+            print(statusout[0])
+            almostFull = statusout[0][14]
+            print(almostFull)
+            if int(almostFull) == 1:
+                #readnumberfast = pyxxusb.VME_BLT_read_32(self.devID, 0x0B, 250, 0x04000000, fastData)
+                #readdata = [np.binary_repr(pyxxusb.longArray_getitem(fastData, i), width=32) for i in range(readnumberfast//4)]
+                dataChannel,datapoint = self.parse_data(self.read_FIFO())
+                if i == 0:
+                    fileName = self.saveDirectory.get()
+                    if fileName in os.listdir():
+                        print('there is a file here')
+                    else:
+                        #file does not exist so make one
+                        myFile = open(fileName,"w")
+                        for i in np.arange(0,len(datapoint)-1,2):
                             #myFile.write(str(int(dataChannel[i]))+', '+str(datapoint[i])+'\n')
-                            binNumber = int(1000000*(datapoint[i])/25)
-                            if int(dataChannel[i])==0:
-                                total_data[0][binNumber] += 1
-                            if int(dataChannel[i])==5:
-                                total_data[1][binNumber] += 1
+                            if datapoint[i] < 8 and datapoint[i] > 0.1:
+                                binNumber = int(1000000*(datapoint[i])/25)
+                                if int(dataChannel[i])==0:
+                                    total_data[0][binNumber] += 1
+                                if int(dataChannel[i])==5:
+                                    total_data[1][binNumber] += 1
+                        myFile.close()
+                else:
+                    with open(fileName,"a") as myFile:
+                        for i in np.arange(0,len(datapoint)-1,2):
+                            if float(datapoint[i]) < 8 and float(datapoint[i]) > 0.1:
+                                #myFile.write(str(int(dataChannel[i]))+', '+str(datapoint[i])+'\n')
+                                binNumber = int(1000000*(datapoint[i])/25)
+                                if int(dataChannel[i])==0:
+                                    total_data[0][binNumber] += 1
+                                if int(dataChannel[i])==5:
+                                    total_data[1][binNumber] += 1
             if time.time()-starttime > 300:
                 break
+        counter = pyxxusb.new_longArray(3)
+        pyxxusb.VME_read_16(self.devID,0x09,0x0400101C,counter)
         totaltime = round(time.time()-starttime,2)
+        getcount = [pyxxusb.longArray_getitem(counter,i) for i in range(3)]
+        print('Event count from TDC')
+        print(getcount[0])
+        print(getcount[0]/(totaltime*1*1000))
+        print('Total time')
         print(totaltime)
         self.stop_func()
         '''
@@ -521,9 +540,12 @@ class main_DAQ:
         #fig.add_histogram(x=data5,nbinsx=10000)
         #fig.show()
         onepeaksum = np.sum(total_data[1][84000:86000])
+        print('One peaks sum')
         print(onepeaksum)
-        print('DAQ eff')
+        print('DAQ eff from peak integration')
         print(onepeaksum/(totaltime*1*1000))
+        print('DAQ eff compared to what TDC counted')
+        print(onepeaksum/getcount[0])
         fig2 = pltex.scatter(y=total_data[0][:200000],x=np.arange(0,len(total_data[0][:200000])))
         fig2.add_scatter(y=total_data[1][:200000],x=np.arange(0,len(total_data[1][:200000])))
         fig2.show()
