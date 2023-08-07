@@ -159,6 +159,16 @@ class DAQSetting:
         warningscheck = self.set_warnings() #0x3500 and 0x3600 in the manual OPCODES
         bypasscheck = self.set_bypasswarning() #0x3700 and 0x3800 in the manual OPCODES
         disablecheck,enablecheck1,enablecheck2 = self.set_channels() #0x4300 and 0x4400 in the manual OPCODES
+        time.sleep(self.waittime)
+        pyxxusb.VME_write_16(self.device,self.AM,0x04001024,2) #number of events for block transfer
+        time.sleep(self.waittime)
+        pyxxusb.VME_write_16(self.device,self.AM,0x04001000,32) #control settings #32 works well
+        time.sleep(self.waittime)
+        pyxxusb.VME_write_16(self.device,self.AM,0x0400102E,0x3300) #limits the number of hits
+        time.sleep(self.waittime)
+        pyxxusb.VME_write_16(self.device,self.AM,0x0400102E,3)
+        time.sleep(self.waittime)
+
 
         checkList = np.array([modecheck,windowcheck1,windowcheck2,offsetcheck1,offsetcheck2,extrasearchcheck1,extrasearchcheck2,rejectcheck1,rejectcheck2,subtractcheck1,rescheck1,rescheck2,headerscheck,warningscheck,bypasscheck,disablecheck,enablecheck1,enablecheck2])
         if np.any(checkList < 0 ):
@@ -234,6 +244,8 @@ class DAQSetting:
         bulkVMEcheck = self.set_VME_bulktransfer()
         gloVMEcheck = self.set_VME_globalmode() #put this one last as 32 bit mode may be turned on
         stackVMEcheck = self.set_VME_stack()
+        time.sleep(self.waittime)
+        pyxxusb.VME_register_write(self.device,36,20) #number of events per buffer
         VMEcheck = np.array([daqVMEcheck,bulkVMEcheck,gloVMEcheck,stackVMEcheck])
         if np.any(VMEcheck < 0):
             return -1

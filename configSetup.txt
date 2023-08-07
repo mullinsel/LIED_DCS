@@ -5,31 +5,31 @@ Must be in format of "SettingName = input"
 TDC SETTINGS:
 TDC address = 67108864
 Trigger mode = True
-Offset = -10
-Window = 8.7
-Reject margin = 0.1
-Extra search window = 0.2
+Offset = -9
+Window = 8
+Reject margin = 0.4
+Extra search window = 0.4
 Trigger subtraction = True
 Resolution = 100
 Enable TDC headers = False
 Enable TDC warnings = False
-Enable TDC bypass warning = False
+Enable TDC bypass warning = True
 Channels = 0,5
 
 VME SETTINGS:
-Stack = 5,0,1291,32768,0,1024
-Trigger delay read = 0
+Stack = 5,0,1291,2048,0,1024
+Trigger delay read = 5
 Scaler readout frequency = 0
 Scaler readout period = 0
-Buffer size = 0
+Buffer size = 9
 Buffer bounds = False
-Mixed buffer = False
+Mixed buffer = True
 Force scaler dump = False
 Align32 = True
 Header output = False
 Timed buffer dump = 0
 Bus request option = 0
-Bulk buffers = 15
-Bulk buffer timeout = 1
+Bulk buffers = 1
+Bulk buffer timeout = 0
 
 end of setup file
