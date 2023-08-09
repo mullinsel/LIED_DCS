@@ -1,10 +1,8 @@
-import os
 import plotly.express as pltex
 import numpy as np
 from tkinter import *
 import time
 from pyxxusb import pyxxusb
-#import infoVME
 import customtkinter
 from settingsConfig import DAQSetting
 
@@ -104,28 +102,26 @@ class main_DAQ:
         loop = 0
         bytes_rec = 1
         while bytes_rec > 0 and loop < 100:
-            bytes_rec = pyxxusb.xxusb_usbfifo_read(self.devID, shortData, 8192, 1000)
+            bytes_rec = pyxxusb.xxusb_usbfifo_read(self.devID, shortData, 8192, 100)
             loop += 1
 
     def read_FIFO(self):
-        readArray = pyxxusb.new_intArray(8192)  # array must be long if reading 32 or short if reading 16
-        numberread = pyxxusb.xxusb_usbfifo_read(self.devID, readArray, 8192, 100000)
-        readdata = [np.binary_repr(pyxxusb.intArray_getitem(readArray, i), width=16) for i in range(numberread//2)]
+        numberread = pyxxusb.xxusb_usbfifo_read(self.devID, self.readArray, 8192, 1)
+        readdata = [np.binary_repr(pyxxusb.intArray_getitem(self.readArray, i), width=16) for i in range(numberread//2)]
         #data = np.array([])
         #for i in range(len(readdata)):
         #    if pyxxusb.intArray_getitem(readArray,i) != 0xc0c0:
         #        data = np.append(data,np.binary_repr(pyxxusb.intArray_getitem(readArray,i),width=16))
-        readdataOut = np.array([str(readdata[i+1]) + str(readdata[i]) for i in np.arange(0, len(readdata)-1, 2)]) #was i+1 and i
+        #readdataOut = np.array([str(readdata[i+1]) + str(readdata[i]) for i in np.arange(0, len(readdata)-1, 2)]) #was i+1 and i
         #hexinfo = [hex(pyxxusb.intArray_getitem(readArray, i)) for i in range(numberread // 2)]
         #print(readdata[:20])
-        return readdataOut
+        return readdata
 
     def read_buffer(self):  # read what is in the buffer and outputs the array
-        readArray = pyxxusb.new_longArray(8192) #array must be long if reading 32 or short if reading 16
-        numberread = pyxxusb.xxusb_bulk_read(self.devID, readArray, 8192, 100)
-        readdata = [np.binary_repr(pyxxusb.longArray_getitem(readArray, i),width=32) for i in range(numberread//4)]
+        #readArray = pyxxusb.new_shortArray(4096) #array must be long if reading 32 or short if reading 16
+        numberread = pyxxusb.xxusb_bulk_read(self.devID, self.dataArray, 8192, 1)
+        readdata = [np.binary_repr(pyxxusb.shortArray_getitem(self.dataArray, i),width=16) for i in range(numberread//2)]
         #readdataOut = np.array([str(readdata[i+1]) + str(readdata[i]) for i in np.arange(0, len(readdata)-1, 2)]) #was i+1 and i
-        print(readdata)
         return readdata
 
     def connect_func(self):
@@ -193,37 +189,21 @@ class main_DAQ:
         return
 
     def parse_data(self,dataToParse):
-        #print(self.settings.channels)
-        #print(dataToParse[:100])
-        #print(dataToParse[-50:])
         tdcmeasured = np.array([])
         difference = np.array([])
-        startset = 0
-        stopset = 0
         for i in range(len(dataToParse)):
-            if str(dataToParse[i][:5]) == '01000': #header
-                indexstart = i+1
-                startset = 1
-            if str(dataToParse[i][:5]) == '10000': #trailer
-                indexstop = i
-                stopset = 1
-            if stopset==1 and startset ==1:
-                tdcmeasured = np.append(tdcmeasured,dataToParse[indexstart:indexstop])
-                startset = 0
-                stopset = 0
-        #    if str(dataToParse[i][:5]) == '00000' and str(dataToParse[i]) != '00000000000000000000000000000000' and str(dataToParse[i]) != '00000000000000000000000010000001':
-        #        if int(dataToParse[i][6:11],2)==0 or int(dataToParse[i][6:11],2)==5:
-        #            tdcmeasured = np.append(tdcmeasured,dataToParse[i])
-        tdcmeasuredfilter = np.array([tdcmeasured[i] for i in range(len(tdcmeasured)) if str(tdcmeasured[i][:5]) == '00000' ])
-        channel = np.array([int((tdcmeasuredfilter[i][6:11]),2) for i in range(len(tdcmeasuredfilter))]) #6:11
-        measure = np.array([(100)*int(tdcmeasuredfilter[i][13:],2) for i in range(len(tdcmeasuredfilter))]) #11:  data in microseconds # 11 is the index for 25 ps mode (21 bits) 13 is the index for 100ps (19 bits)
-        referencehit = 0
-        for i in range(len(tdcmeasuredfilter)):
+            if str(dataToParse[i][:5]) == '00000':
+                if int(dataToParse[i][6:11],2)==0 or int(dataToParse[i][6:11],2)==2 or int(dataToParse[i][6:11],2)==9:
+                    tdcmeasured = np.append(tdcmeasured,dataToParse[i]+dataToParse[i-1])
+        if len(dataToParse) != 0:
+            print((2*len(tdcmeasured))/len(dataToParse))
+        channel = np.array([int((tdcmeasured[i][6:11]),2) for i in range(len(tdcmeasured))]) #6:11
+        measure = np.array([(100)*int(tdcmeasured[i][13:],2) for i in range(len(tdcmeasured))]) #11:  data in microseconds # 11 is the index for 25 ps mode (21 bits) 13 is the index for 100ps (19 bits)
+        for i in range(len(tdcmeasured)):
             if channel[i] == 0:
-                referencehit = measure[i]
-            if referencehit != 0:
-                difference = np.append(difference,np.abs(referencehit-measure[i]))
-        print(len(dataToParse))
+                self.referencehit = measure[i]
+            if self.referencehit != 'no reference':
+                difference = np.append(difference,np.abs(self.referencehit-measure[i]))
         return difference
 
     def start_func(self):  # start/run read TDC
@@ -235,38 +215,28 @@ class main_DAQ:
         self.runningText.update()
         self.runningText.config(state=DISABLED)
         totalRunTime = int(self.runTime.get())
-        #fastdata = pyxxusb.new_longArray(8192)
-        self.drain_FIFO()
-        pyxxusb.VME_write_16(self.devID, 0x0E, 0x04001018, 1)#clears the TDC event counts
         self.settings.DAQ_mode_on()
+        self.referencehit = 'no reference'
+        self.dataArray = pyxxusb.new_shortArray(8192)
+        self.readArray = pyxxusb.new_intArray(8192)
         starttime = time.time()
         histArray = np.zeros((2,int((1000000/100)*6))) #length of this array will be the window length but for now its 6 microseconds
         for z in range(5000000):
-            if time.time()-starttime > 0:
-                #fastcount = pyxxusb.VME_BLT_read_32(self.devID,0x0B,250,0x04000000,fastdata)
-                #fastout = np.array([np.binary_repr(pyxxusb.longArray_getitem(fastdata,i),width=32) for i in range(fastcount//4)])
-                #print(fastout)
-                #buffer_data = self.parse_data(fastout)
-                buffer_data = self.parse_data(self.read_buffer())
+            if time.time()-starttime > 2:
+                buffer_data = self.parse_data(self.read_FIFO())
                 for i in buffer_data:
                     dataindex = int(round(i,-2)//100)
                     if dataindex < len(histArray[0]):
-                        histArray[0][dataindex] += 1
+                         histArray[0][dataindex] += 1
                 print(round(time.time()-starttime,2))
                 if time.time()-starttime > totalRunTime:
-                    finaltime = time.time()-starttime - 2
+                    finaltime = time.time()-starttime-2
                     break
             else:
-                self.read_buffer()
-        counter = pyxxusb.new_longArray(1)
+                dump = self.read_buffer()
         self.stop_func()
-        reprate = 10
-        pyxxusb.VME_read_32(self.devID,0x09,0x0400101C,counter)
+        reprate = 1
         totaltime = round(finaltime,2)
-        getcount = [pyxxusb.longArray_getitem(counter,i) for i in range(1)]
-        print('Event count from TDC')
-        print(getcount[0])
-        print(getcount[0]/(totaltime*reprate*1000))
         print('Total time')
         print(totaltime)
         print('Check')
@@ -274,12 +244,14 @@ class main_DAQ:
         zerocount = np.sum(histArray[0][0:300])
         print(zerocount)
         print(zerocount/(finaltime*reprate*1000))
-        print(zerocount/getcount[0])
         print('one')
         onecount = np.sum(histArray[0][7000:7500])
         print(onecount)
         print(onecount/(finaltime*reprate*1000))
-        print(onecount/getcount[0])
+        print('two')
+        twocount = np.sum(histArray[0][8000:8500])
+        print(twocount)
+        print(twocount/(finaltime*reprate*1000))
         '''
         with open(self.saveDirectory.get(),"r") as readFile:
             test = readFile.read()

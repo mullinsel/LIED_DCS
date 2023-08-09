@@ -149,28 +149,32 @@ class DAQSetting:
 
     def setup_TDC(self): #sets all of the parameters for the TDC calling all the functions to be set and returning any errors they had
         modecheck = self.set_mode() #0x0000 and 0x0100 in manual OPCODES
-        windowcheck1,windowcheck2 = self.set_window()  #0x1000 in manual OPCODES
-        offsetcheck1,offsetcheck2 = self.set_offset()  #0x1100 in manual OPCODES
-        extrasearchcheck1,extrasearchcheck2 = self.set_extraSearch() #0x1200 in manual OPCODES
-        rejectcheck1,rejectcheck2 = self.set_reject() #0x1300 in manual OPCODES
-        subtractcheck1 = self.set_triggersubtract() #0x1400 and 0x1500 in manual OPCODES
-        rescheck1, rescheck2 = self.set_resolution() #0x2400 in the manual OPCODES
+        rescheck1, rescheck2 = self.set_resolution()  # 0x2400 in the manual OPCODES
         headerscheck = self.set_headers() #0x3000 and 0x3100 in the manual OPCODES
         warningscheck = self.set_warnings() #0x3500 and 0x3600 in the manual OPCODES
         bypasscheck = self.set_bypasswarning() #0x3700 and 0x3800 in the manual OPCODES
         disablecheck,enablecheck1,enablecheck2 = self.set_channels() #0x4300 and 0x4400 in the manual OPCODES
         time.sleep(self.waittime)
-        pyxxusb.VME_write_16(self.device,self.AM,0x04001024,2) #number of events for block transfer
+        pyxxusb.VME_write_16(self.device,self.AM,0x04001024,250) #number of events for block transfer
         time.sleep(self.waittime)
-        pyxxusb.VME_write_16(self.device,self.AM,0x04001000,32) #control settings #32 works well
-        time.sleep(self.waittime)
-        pyxxusb.VME_write_16(self.device,self.AM,0x0400102E,0x3300) #limits the number of hits
-        time.sleep(self.waittime)
-        pyxxusb.VME_write_16(self.device,self.AM,0x0400102E,3)
+        pyxxusb.VME_write_16(self.device,self.AM,0x04001000,4129) #control settings #32 works well
         time.sleep(self.waittime)
 
+        if self.triggerMode == "True":
+            windowcheck1,windowcheck2 = self.set_window()  #0x1000 in manual OPCODES
+            offsetcheck1,offsetcheck2 = self.set_offset()  #0x1100 in manual OPCODES
+            extrasearchcheck1,extrasearchcheck2 = self.set_extraSearch() #0x1200 in manual OPCODES
+            rejectcheck1,rejectcheck2 = self.set_reject() #0x1300 in manual OPCODES
+            subtractcheck1 = self.set_triggersubtract() #0x1400 and 0x1500 in manual OPCODES
+            #pyxxusb.VME_write_16(self.device, self.AM, 0x0400102E, 0x3300)  # limits the number of hits
+            #time.sleep(self.waittime)
+            #pyxxusb.VME_write_16(self.device, self.AM, 0x0400102E, 6)
+            #time.sleep(self.waittime)
+            checkList = np.array([modecheck, rescheck1, rescheck2, windowcheck1, windowcheck2, offsetcheck1, offsetcheck2,extrasearchcheck1, extrasearchcheck2, rejectcheck1, rejectcheck2, subtractcheck1, headerscheck,warningscheck, bypasscheck, disablecheck, enablecheck1, enablecheck2])
 
-        checkList = np.array([modecheck,windowcheck1,windowcheck2,offsetcheck1,offsetcheck2,extrasearchcheck1,extrasearchcheck2,rejectcheck1,rejectcheck2,subtractcheck1,rescheck1,rescheck2,headerscheck,warningscheck,bypasscheck,disablecheck,enablecheck1,enablecheck2])
+        else:
+            #windowcheck1,windowcheck2,offsetcheck1,offsetcheck2,extrasearchcheck1,extrasearchcheck2,rejectcheck1,rejectcheck2,subtractcheck1
+            checkList = np.array([modecheck,rescheck1,rescheck2,headerscheck,warningscheck,bypasscheck,disablecheck,enablecheck1,enablecheck2])
         if np.any(checkList < 0 ):
             return -1
         else:
@@ -245,7 +249,8 @@ class DAQSetting:
         gloVMEcheck = self.set_VME_globalmode() #put this one last as 32 bit mode may be turned on
         stackVMEcheck = self.set_VME_stack()
         time.sleep(self.waittime)
-        pyxxusb.VME_register_write(self.device,36,20) #number of events per buffer
+        pyxxusb.VME_register_write(self.device,36,1) #number of events per buffer
+        time.sleep(self.waittime)
         VMEcheck = np.array([daqVMEcheck,bulkVMEcheck,gloVMEcheck,stackVMEcheck])
         if np.any(VMEcheck < 0):
             return -1
@@ -253,7 +258,7 @@ class DAQSetting:
             return 1
 
     def DAQ_mode_on(self):
-        bytes_written = pyxxusb.xxusb_register_write(self.device, 1, 1)
+        bytes_written = pyxxusb.xxusb_register_write(self.device, 1, 257)
         return bytes_written
 
     def DAQ_mode_off(self):
