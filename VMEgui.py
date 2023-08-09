@@ -106,8 +106,9 @@ class main_DAQ:
             loop += 1
 
     def read_FIFO(self):
-        numberread = pyxxusb.xxusb_usbfifo_read(self.devID, self.readArray, 8192, 1)
-        readdata = [np.binary_repr(pyxxusb.intArray_getitem(self.readArray, i), width=16) for i in range(numberread//2)]
+        readArray = pyxxusb.new_intArray(1024)
+        numberread = pyxxusb.xxusb_usbfifo_read(self.devID, readArray, 1024, 1)
+        readdata = [np.binary_repr(pyxxusb.intArray_getitem(readArray, i), width=16) for i in range(numberread//2)]
         #data = np.array([])
         #for i in range(len(readdata)):
         #    if pyxxusb.intArray_getitem(readArray,i) != 0xc0c0:
@@ -119,9 +120,11 @@ class main_DAQ:
 
     def read_buffer(self):  # read what is in the buffer and outputs the array
         #readArray = pyxxusb.new_shortArray(4096) #array must be long if reading 32 or short if reading 16
-        numberread = pyxxusb.xxusb_bulk_read(self.devID, self.dataArray, 8192, 1)
+        numberread = pyxxusb.xxusb_bulk_read(self.devID, self.dataArray, 131072, 1)
         readdata = [np.binary_repr(pyxxusb.shortArray_getitem(self.dataArray, i),width=16) for i in range(numberread//2)]
         #readdataOut = np.array([str(readdata[i+1]) + str(readdata[i]) for i in np.arange(0, len(readdata)-1, 2)]) #was i+1 and i
+        print(len(readdata))
+        print(readdata[:10])
         return readdata
 
     def connect_func(self):
@@ -217,23 +220,24 @@ class main_DAQ:
         totalRunTime = int(self.runTime.get())
         self.settings.DAQ_mode_on()
         self.referencehit = 'no reference'
-        self.dataArray = pyxxusb.new_shortArray(8192)
-        self.readArray = pyxxusb.new_intArray(8192)
+        self.dataArray = pyxxusb.new_shortArray(131072)
+        #self.readArray = pyxxusb.new_intArray(1024)
         starttime = time.time()
         histArray = np.zeros((2,int((1000000/100)*6))) #length of this array will be the window length but for now its 6 microseconds
         for z in range(5000000):
-            if time.time()-starttime > 2:
-                buffer_data = self.parse_data(self.read_FIFO())
-                for i in buffer_data:
-                    dataindex = int(round(i,-2)//100)
-                    if dataindex < len(histArray[0]):
-                         histArray[0][dataindex] += 1
-                print(round(time.time()-starttime,2))
+            print(round(time.time() - starttime, 2))
+            if time.time()-starttime > 10:
+                self.read_buffer()
+                #buffer_data = self.parse_data(self.read_FIFO())
+                #for i in buffer_data:
+                #    dataindex = int(round(i,-2)//100)
+                #    if dataindex < len(histArray[0]):
+                #         histArray[0][dataindex] += 1
                 if time.time()-starttime > totalRunTime:
                     finaltime = time.time()-starttime-2
                     break
             else:
-                dump = self.read_buffer()
+                dump = 1#self.read_buffer()
         self.stop_func()
         reprate = 1
         totaltime = round(finaltime,2)

@@ -30,6 +30,6 @@ Header output = False
 Timed buffer dump = 0
 Bus request option = 0
 Bulk buffers = 250
-Bulk buffer timeout = 0
+Bulk buffer timeout = 1
 
 end of setup file
