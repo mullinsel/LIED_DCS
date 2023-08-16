@@ -30,7 +30,10 @@ class DAQSetting:
     ###TDC Functions###
 
     def reset_TDC(self):
-        resetcheck = pyxxusb.VME_write_16(self.device, self.AM, self.baseAddress+int(0x1016), 1)
+        pyxxusb.VME_write_16(self.device,self.AM,self.baseAddress+int(0x1014),0)
+        time.sleep(self.waittime)
+        resetcheck = pyxxusb.VME_write_16(self.device, self.AM, self.baseAddress+int(0x1016), 0)
+        time.sleep(self.waittime)
         return resetcheck
 
     def set_offset(self): #sets the trigger match offset
@@ -159,7 +162,12 @@ class DAQSetting:
         time.sleep(self.waittime)
         pyxxusb.VME_write_16(self.device,self.AM,0x04001000,4129) #control settings #32 works well
         time.sleep(self.waittime)
-
+        pyxxusb.VME_write_16(self.device,self.AM,0x04001022,20000) #32730
+        time.sleep(self.waittime)
+        #pyxxusb.VME_write_
+        time.sleep(self.waittime)
+        pyxxusb.VME_write_16(self.device,self.AM,0x04001012,3)
+        time.sleep(self.waittime)
         if self.triggerMode == "True":
             windowcheck1,windowcheck2 = self.set_window()  #0x1000 in manual OPCODES
             offsetcheck1,offsetcheck2 = self.set_offset()  #0x1100 in manual OPCODES
@@ -186,16 +194,15 @@ class DAQSetting:
 
     def reset_VME(self):
         time.sleep(self.waittime)
-        #clearcheck = pyxxusb.VME_register_write(self.device,1,4)
+        clearcheck = pyxxusb.VME_register_write(self.device,1,4)
+        time.sleep(self.waittime)
+        pyxxusb.VME_register_write(self.device,1,0)
+        time.sleep(self.waittime)
         buffdumpcheck1 = pyxxusb.VME_register_write(self.device,1,64)
         time.sleep(self.waittime)
         buffdumpcheck2 = pyxxusb.VME_register_write(self.device,1,0)
         time.sleep(self.waittime)
-        sysrescheck1 = pyxxusb.VME_register_write(self.device,1,8)
-        time.sleep(self.waittime)
-        sysrescheck2 = pyxxusb.VME_register_write(self.device,1,0)
-        time.sleep(self.waittime)
-        VMEresetcheckList = np.array([buffdumpcheck1,buffdumpcheck2,sysrescheck1,sysrescheck2])
+        VMEresetcheckList = np.array([buffdumpcheck1,buffdumpcheck2])
         if np.any(VMEresetcheckList < 0 ):
             return -1
         else:
@@ -249,8 +256,9 @@ class DAQSetting:
         gloVMEcheck = self.set_VME_globalmode() #put this one last as 32 bit mode may be turned on
         stackVMEcheck = self.set_VME_stack()
         time.sleep(self.waittime)
-        pyxxusb.VME_register_write(self.device,36,1) #number of events per buffer
-        time.sleep(self.waittime)
+        pyxxusb.VME_register_write(self.device,0x28,0x31DD)
+        #pyxxusb.VME_register_write(self.device,36,250) #number of events per buffer
+        #time.sleep(self.waittime)
         VMEcheck = np.array([daqVMEcheck,bulkVMEcheck,gloVMEcheck,stackVMEcheck])
         if np.any(VMEcheck < 0):
             return -1
@@ -258,7 +266,7 @@ class DAQSetting:
             return 1
 
     def DAQ_mode_on(self):
-        bytes_written = pyxxusb.xxusb_register_write(self.device, 1, 257)
+        bytes_written = pyxxusb.xxusb_register_write(self.device, 1, 1)#257
         return bytes_written
 
     def DAQ_mode_off(self):

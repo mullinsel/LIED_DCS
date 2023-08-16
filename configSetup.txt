@@ -7,8 +7,8 @@ TDC address = 67108864
 Trigger mode = True
 Offset = -9
 Window = 8
-Reject margin = 0.6
-Extra search window = 0.6
+Reject margin = 0.4
+Extra search window = 0.4
 Trigger subtraction = True
 Resolution = 100
 Enable TDC headers = False
@@ -17,19 +17,19 @@ Enable TDC bypass warning = True
 Channels = 0,2,9
 
 VME SETTINGS:
-Stack = 7,0,2315,256,50,0,0,1024
-Trigger delay read = 1
+Stack = 7,0,2315,16384,512,0,0,1024
+Trigger delay read = 2
 Scaler readout frequency = 0
 Scaler readout period = 0
-Buffer size = 1
-Buffer bounds = False
+Buffer size = 0
+Buffer bounds = True
 Mixed buffer = True
 Force scaler dump = False
-Align32 = True
+Align32 = False
 Header output = False
 Timed buffer dump = 0
 Bus request option = 0
-Bulk buffers = 250
+Bulk buffers = 1
 Bulk buffer timeout = 1
 
 end of setup file
