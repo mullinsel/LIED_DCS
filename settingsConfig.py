@@ -150,6 +150,36 @@ class DAQSetting:
         time.sleep(self.waittime)
         return disablecheck,enablecheck1,enablecheck2 #if negative then the settings failed to write
 
+    def set_numberBlockTransfer(self):
+        time.sleep(self.waittime)
+        writeBLTnumbercheck = pyxxusb.VME_write_16(self.device,self.AM,self.baseAddress+int(0x1024),self.BLTnumber) #number of events for block transfer
+        time.sleep(self.waittime)
+        return writeBLTnumbercheck
+
+    def set_maincontrol(self):
+        time.sleep(self.waittime)
+        checkmainwrite = pyxxusb.VME_write_16(self.device,self.AM,self.baseAddress+int(0x1000),int(self.TDCmain)) #control settings #32 works well
+        time.sleep(self.waittime)
+        return checkmainwrite
+
+    def set_almostFull(self):
+        time.sleep(self.waittime)
+        writecheckalmostfull = pyxxusb.VME_write_16(self.device,self.AM,self.baseAddress+int(0x1022),int(self.TDCalmostfull)) #32730
+        time.sleep(self.waittime)
+        return writecheckalmostfull
+
+    def set_interLevel(self):
+        time.sleep(self.waittime)
+        intercheckwrite = pyxxusb.VME_write_16(self.device,self.AM,self.baseAddress+int(0x100A),int(self.interlevel))
+        time.sleep(self.waittime)
+        return intercheckwrite
+
+    def set_multicastorder(self):
+        time.sleep(self.waittime)
+        multicastwrite = pyxxusb.VME_write_16(self.device,self.AM,self.baseAddress+int(0x1012),int(self.multiorder))
+        time.sleep(self.waittime)
+        return multicastwrite
+
     def setup_TDC(self): #sets all of the parameters for the TDC calling all the functions to be set and returning any errors they had
         modecheck = self.set_mode() #0x0000 and 0x0100 in manual OPCODES
         rescheck1, rescheck2 = self.set_resolution()  # 0x2400 in the manual OPCODES
@@ -157,17 +187,12 @@ class DAQSetting:
         warningscheck = self.set_warnings() #0x3500 and 0x3600 in the manual OPCODES
         bypasscheck = self.set_bypasswarning() #0x3700 and 0x3800 in the manual OPCODES
         disablecheck,enablecheck1,enablecheck2 = self.set_channels() #0x4300 and 0x4400 in the manual OPCODES
-        time.sleep(self.waittime)
-        pyxxusb.VME_write_16(self.device,self.AM,0x04001024,250) #number of events for block transfer
-        time.sleep(self.waittime)
-        pyxxusb.VME_write_16(self.device,self.AM,0x04001000,4129) #control settings #32 works well
-        time.sleep(self.waittime)
-        pyxxusb.VME_write_16(self.device,self.AM,0x04001022,20000) #32730
-        time.sleep(self.waittime)
-        #pyxxusb.VME_write_
-        time.sleep(self.waittime)
-        pyxxusb.VME_write_16(self.device,self.AM,0x04001012,3)
-        time.sleep(self.waittime)
+        writenumberbltcheck = self.set_numberBlockTransfer() #writes the number of events for block transfer
+        mainwritecheck = self.set_maincontrol()
+        almostFullcheck = self.set_almostFull()
+        intercheck = self.set_interLevel()
+        multicastcheck = self.set_multicastorder()
+
         if self.triggerMode == "True":
             windowcheck1,windowcheck2 = self.set_window()  #0x1000 in manual OPCODES
             offsetcheck1,offsetcheck2 = self.set_offset()  #0x1100 in manual OPCODES
@@ -178,11 +203,11 @@ class DAQSetting:
             #time.sleep(self.waittime)
             #pyxxusb.VME_write_16(self.device, self.AM, 0x0400102E, 6)
             #time.sleep(self.waittime)
-            checkList = np.array([modecheck, rescheck1, rescheck2, windowcheck1, windowcheck2, offsetcheck1, offsetcheck2,extrasearchcheck1, extrasearchcheck2, rejectcheck1, rejectcheck2, subtractcheck1, headerscheck,warningscheck, bypasscheck, disablecheck, enablecheck1, enablecheck2])
+            checkList = np.array([multicastcheck,intercheck,almostFullcheck,mainwritecheck,writenumberbltcheck,modecheck, rescheck1, rescheck2, windowcheck1, windowcheck2, offsetcheck1, offsetcheck2,extrasearchcheck1, extrasearchcheck2, rejectcheck1, rejectcheck2, subtractcheck1, headerscheck,warningscheck, bypasscheck, disablecheck, enablecheck1, enablecheck2])
 
         else:
             #windowcheck1,windowcheck2,offsetcheck1,offsetcheck2,extrasearchcheck1,extrasearchcheck2,rejectcheck1,rejectcheck2,subtractcheck1
-            checkList = np.array([modecheck,rescheck1,rescheck2,headerscheck,warningscheck,bypasscheck,disablecheck,enablecheck1,enablecheck2])
+            checkList = np.array([multicastcheck,intercheck,almostFullcheck,mainwritecheck,writenumberbltcheck,modecheck,rescheck1,rescheck2,headerscheck,warningscheck,bypasscheck,disablecheck,enablecheck1,enablecheck2])
         if np.any(checkList < 0 ):
             return -1
         else:
@@ -246,7 +271,7 @@ class DAQSetting:
         stackdata = pyxxusb.new_longArray(len(self.stack)) #array containing the stack info to be written
         for i in range(len(self.stack)):
             pyxxusb.longArray_setitem(stackdata, i, int(self.stack[i])) #load elements into pointer
-        stackwritecheck = pyxxusb.xxusb_stack_write(self.device, 2, stackdata) #write the stack
+        stackwritecheck = pyxxusb.xxusb_stack_write(self.device, 19, stackdata) #write the stack
         time.sleep(self.waittime)
         return stackwritecheck #if negative then failed to write
 
@@ -302,6 +327,11 @@ class DAQSetting:
         self.triggersubtract = self.parse_file("Trigger subtraction = ",settingsFile)
         self.extrasearch = float(self.parse_file("Extra search window = ",settingsFile))
         self.resolution = int(self.parse_file("Resolution = ",settingsFile))
+        self.BLTnumber = int(self.parse_file("Number of events for block transfer = ",settingsFile))
+        self.TDCmain = int(self.parse_file("TDC main control = ",settingsFile))
+        self.TDCalmostfull = int(self.parse_file("TDC almost full = ",settingsFile))
+        self.interlevel = int(self.parse_file("Interrupt level = ",settingsFile))
+        self.multiorder = int(self.parse_file("Multicast order = ",settingsFile))
 
         #VME settings
         self.triggerdelay = int(self.parse_file("Trigger delay read = ",settingsFile))

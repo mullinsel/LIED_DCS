@@ -60,6 +60,7 @@ class main_DAQ:
         self.runTime = Entry(master)
         self.runTime.insert(END,'101')
         self.runTime.place(x=20,y=225)
+        self.readSize = 524288
 
     def close_window(self):
         self.stop_func()
@@ -106,7 +107,7 @@ class main_DAQ:
         loop = 0
         bytes_rec = 1
         while bytes_rec > 0 and loop < 100:
-            bytes_rec = pyxxusb.xxusb_usbfifo_read(self.devID, shortData, 262144, 10)
+            bytes_rec = pyxxusb.xxusb_usbfifo_read(self.devID, shortData, 262144, 1000)
             loop += 1
 
     def read_FIFO(self):
@@ -125,7 +126,7 @@ class main_DAQ:
 
     def read_buffer(self):  # read what is in the buffer and outputs the array
         #readArray = pyxxusb.new_shortArray(131072) #array must be long if reading 32 or short if reading 16
-        numberread = pyxxusb.xxusb_bulk_read(self.devID, self.readArray, 262144, 1000)
+        numberread = pyxxusb.xxusb_bulk_read(self.devID, self.readArray, int(self.readSize*2), 1000)
         readdata = [np.binary_repr(pyxxusb.shortArray_getitem(self.readArray, i),width=16) for i in range(numberread//2)]
         print(len(readdata))
         return readdata
@@ -214,16 +215,6 @@ class main_DAQ:
         else:
             return []
 
-    def fastread(self):
-        fastdata = pyxxusb.new_longArray(16384)
-        readnumber = pyxxusb.VME_BLT_read_32(self.devID,0x0B,2048,0x04000000,fastdata)
-        print('bytes')
-        print(readnumber)
-        dataout = [np.binary_repr(pyxxusb.longArray_getitem(fastdata,i),width=32) for i in range(readnumber//2)]
-        print(len(dataout))
-        print(dataout[:10])
-        return dataout
-
     def start_func(self):  # start/run read TDC
         counter = 0
         self.runningDAQ=True
@@ -236,13 +227,13 @@ class main_DAQ:
         totalRunTime = int(self.runTime.get())
         self.settings.DAQ_mode_on()
         self.referencehit = 'no reference'
-        self.readArray = pyxxusb.new_shortArray(232144)
+        self.readArray = pyxxusb.new_shortArray(int(self.readSize))
         starttime = time.time()
         histArray = np.zeros((2,int((1000000/100)*6))) #length of this array will be the window length but for now its 6 microseconds
         for z in range(5000000):
             print(round(time.time() - starttime, 2))
             if time.time()-starttime > 1:
-                time.sleep(0.1)
+                #time.sleep(0.1)
                 counter += len(self.read_buffer())
                 print(counter)
                 buffer_data = []#np.array(self.parse_data(self.read_FIFO()))
@@ -257,8 +248,8 @@ class main_DAQ:
             else:
                 dump = 1 #self.drain_FIFO()
         self.stop_func()
-        reprate = 10
-        totalhits = 33
+        reprate = 50
+        totalhits = 11
         totaltime = round(finaltime,2)
         print('percent total data made to computer')
         print((counter/2)/(totaltime*reprate*1000*totalhits))
