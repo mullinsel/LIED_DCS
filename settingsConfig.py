@@ -166,6 +166,12 @@ class DAQSetting:
         time.sleep(self.waittime)
         return multicastwrite
 
+    def clear_TDC_buffer(self):
+        time.sleep(self.waittime)
+        pyxxusb.VME_write_16(self.device,self.AM,self.baseAddress+int(0x1016),1)
+        time.sleep(self.waittime)
+        return
+
     def setup_TDC(self): #sets all of the parameters for the TDC calling all the functions to be set and returning any errors they had
         modecheck = self.set_mode() #0x0000 and 0x0100 in manual OPCODES
         rescheck1, rescheck2 = self.set_resolution()  # 0x2400 in the manual OPCODES

@@ -7,6 +7,7 @@ import customtkinter
 from settingsConfig import DAQSetting
 from engineDAQ import parse_data
 from engineDAQ import read_engine
+import multiprocessing
 
 customtkinter.set_default_color_theme("C:\\Users\cbonline\Documents\PycharmProjects\LIED_DCS\custom-tktheme.json")
 class main_DAQ:
@@ -62,7 +63,7 @@ class main_DAQ:
         self.runTime = Entry(master)
         self.runTime.insert(END,'101')
         self.runTime.place(x=20,y=225)
-        self.readSize = int(8192//4) #524288
+        self.readSize = int(4096*255) #524288
 
     def close_window(self):
         self.stop_func()
@@ -223,42 +224,36 @@ class main_DAQ:
         self.runningText.update()
         self.runningText.config(state=DISABLED)
         self.totalRunTime = int(self.runTime.get())
+        self.settings.clear_TDC_buffer()
         self.settings.DAQ_mode_on()
         self.starttime = time.time()
+        maindata = np.zeros((np.max(9)+1, int((1000000 / 100) * 8)))
+        pool = multiprocessing.Pool(10)
         while self.runningDAQ:
-            dataout = self.mainengineData.read_data()
-            self.mainengineParse.main_parse(dataout)
+            dataout = self.mainengineData.read_FIFO()
+            multidataout = pool.map(self.mainengineParse.main_parse,np.array_split(dataout,10))
+            for i in range(10):
+                for j in range(10):
+                    maindata[j] += multidataout[i][j]
             if time.time()-self.starttime > self.totalRunTime:
                 self.finaltime = time.time()-self.starttime
                 self.runningDAQ = False
                 break
-        #while True:
-        #    print(round(time.time() - self.starttime, 2))
-        #    if time.time()-self.starttime > 1:
-        #        buffer_data = self.read_buffer()
-        #        if len(buffer_data) != 0:
-        #            parse.main_parse_data(buffer_data)
-        #self.save_data(buffer_data)
-        #for i in parsed_buffer_data:
-        #    dataindex = int(round(i,-2)//self.settings.resolution)
-        #    if dataindex < len(histArray[0]):
-        #        histArray[0][dataindex] += 1
-        #        if time.time()-self.starttime > self.totalRunTime:
-        #            finaltime = time.time()-self.starttime - 1
-        #            break
-        #    else:
-        #        dump = 1#self.drain_FIFO()
+
         self.stop_func()
         reprate = 3
         totalhits = 32
         totaltime = round(self.finaltime,2)
-        counter9 = np.sum(self.mainengineParse.histArray[9])
-        counter5 = np.sum(self.mainengineParse.histArray[5])
-        counter = counter9 + counter5
+        counter9 = np.sum(maindata[9])
+        counter5 = np.sum(maindata[5])
+        counter2 = np.sum(maindata[2])
+        counter = counter9 + counter5 + counter2
         print('percent total data made to computer')
         print((counter)/(totaltime*reprate*1000*totalhits))
         print(counter9/(totaltime*reprate*1000*16))
         print(counter5 / (totaltime * reprate * 1000 * 16))
+        print(counter2 / (totaltime * reprate * 1000 * 16))
+
 
         print('Total time')
         print(totaltime)
@@ -299,13 +294,14 @@ class main_DAQ:
                     data5 = np.append(data5, float(elements[1]))
         '''
 
-        fig = pltex.line(y=self.mainengineParse.histArray[9], x=(1/10000)*np.arange(0,len(self.mainengineParse.histArray[9])))
-        fig.add_scatter(y=self.mainengineParse.histArray[5],x=(1/10000)*np.arange(0,len(self.mainengineParse.histArray[5])))
-        fig.add_scatter(y=self.mainengineParse.histArray[1],x=(1/10000)*np.arange(0,len(self.mainengineParse.histArray[1])))
+        fig = pltex.line(y=maindata[9], x=(1/10000)*np.arange(0,len(maindata[9])))
+        fig.add_scatter(y=maindata[5],x=(1/10000)*np.arange(0,len(maindata[5])))
+        fig.add_scatter(y=maindata[2],x=(1/10000)*np.arange(0,len(maindata[2])))
 
+        #fig.add_scatter(y=self.mainengineParse.histArray[1],x=(1/10000)*np.arange(0,len(self.mainengineParse.histArray[1])))
         fig.show()
 
-
-root = customtkinter.CTk()
-my_gui = main_DAQ(root)
-root.mainloop()
+if __name__ == '__main__':
+    root = customtkinter.CTk()
+    my_gui = main_DAQ(root)
+    root.mainloop()
