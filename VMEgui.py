@@ -5,6 +5,8 @@ import time
 from pyxxusb import pyxxusb
 import customtkinter
 from settingsConfig import DAQSetting
+from engineDAQ import parse_data
+from engineDAQ import read_engine
 
 customtkinter.set_default_color_theme("C:\\Users\cbonline\Documents\PycharmProjects\LIED_DCS\custom-tktheme.json")
 class main_DAQ:
@@ -50,7 +52,7 @@ class main_DAQ:
         self.writeSettings.place(x=750,y=150)
         customtkinter.CTkLabel(master,text='Errors',font=('Helvetica',30)).place(x=800,y=480)
         self.errorText = Text(master,width=30,height=10)
-        self.errorText.insert(END,"No Errors Yet")
+        self.errorText.insert(END,"No Errors")
         self.errorText.place(x=705,y=525)
         self.settingsStatus = Text(master,background='red',height=2,width=20)
         self.settingsStatus.insert(END,'Settings Unwritten')
@@ -60,7 +62,7 @@ class main_DAQ:
         self.runTime = Entry(master)
         self.runTime.insert(END,'101')
         self.runTime.place(x=20,y=225)
-        self.readSize = 524288
+        self.readSize = int(8192//4) #524288
 
     def close_window(self):
         self.stop_func()
@@ -80,11 +82,12 @@ class main_DAQ:
     def setup_config(self,configdirectory):
         self.settings = DAQSetting(self.devID, configdirectory)
         time.sleep(0.3)
-        self.settings.reset_TDC()
-        time.sleep(0.3)
-        self.settings.reset_VME()
-        time.sleep(0.3)
+        #self.settings.reset_TDC()
+        #time.sleep(0.3)
+        #self.settings.reset_VME()
+        #time.sleep(0.3)
         TDCcheck = self.settings.setup_TDC()
+        time.sleep(0.3)
         VMEcheck = self.settings.setup_VME()
         if VMEcheck > 0 and TDCcheck > 0:
             mode = 'From file'
@@ -120,16 +123,18 @@ class main_DAQ:
         #        data = np.append(data,np.binary_repr(pyxxusb.intArray_getitem(readArray,i),width=16))
         #readdataOut = np.array([str(readdata[i+1]) + str(readdata[i]) for i in np.arange(0, len(readdata)-1, 2)]) #was i+1 and i
         #hexinfo = [hex(pyxxusb.intArray_getitem(readArray, i)) for i in range(numberread // 2)]
-        #print(readdata[:20])
+        print(readdata[:10])
         print(len(readdata))
         return readdata
 
     def read_buffer(self):  # read what is in the buffer and outputs the array
-        #readArray = pyxxusb.new_shortArray(131072) #array must be long if reading 32 or short if reading 16
-        numberread = pyxxusb.xxusb_bulk_read(self.devID, self.readArray, int(self.readSize*2), 1000)
+        # readArray = pyxxusb.new_shortArray(self.readSize) #array must be long if reading 32 or short if reading 16
+        numberread = pyxxusb.xxusb_bulk_read(self.devID, self.readArray, int(self.readSize), 10000)
         readdata = [np.binary_repr(pyxxusb.shortArray_getitem(self.readArray, i),width=16) for i in range(numberread//2)]
-        print(len(readdata))
-        return readdata
+        self.datahere = np.append(self.datahere,readdata)
+        if time.time()-self.starttime > self.totalRunTime:
+            self.finaltime = time.time()-self.starttime
+            self.runningDAQ = False
 
     def connect_func(self):
         self.devID = pyxxusb.xxusb_serial_open('VM0353')
@@ -195,28 +200,21 @@ class main_DAQ:
             self.settingsStatus.config(state=DISABLED)
         return
 
-    def parse_data(self,dataToParse):
-        difference = np.array([])
-        if len(dataToParse) != 0:
-            for i in range(len(dataToParse)):
-                if str(dataToParse[i][:5]) == '00000' and i-1 > 0:
-                    if int(dataToParse[i][6:11],2)==0 or int(dataToParse[i][6:11],2)==2 or int(dataToParse[i][6:11],2)==9:
-                        tdcmeasured = np.append(tdcmeasured,dataToParse[i]+dataToParse[i-1])
-            if len(dataToParse) != 0:
-                print((2*len(tdcmeasured))/len(dataToParse))
-            channel = np.array([int((tdcmeasured[i][6:11]),2) for i in range(len(tdcmeasured))]) #6:11
-            measure = np.array([(100)*int(tdcmeasured[i][13:],2) for i in range(len(tdcmeasured))]) #11:  data in microseconds # 11 is the index for 25 ps mode (21 bits) 13 is the index for 100ps (19 bits)
-            for i in range(len(tdcmeasured)):
-                if channel[i] == 0:
-                    self.referencehit = measure[i]
-                if self.referencehit != 'no reference':
-                    difference = np.append(difference,np.abs(self.referencehit-measure[i]))
-            return difference
-        else:
-            return []
+    def parse_data_thread(self):
+        if len(self.datahere) != 0:
+            self.parse.main_parse_data(self.datahere)
+
+    def save_data(self,datain):
+        file1 = open("test.txt","a")
+        for i in datain:
+            file1.write(str(i)+"\n")
+        file1.close()
+        return
 
     def start_func(self):  # start/run read TDC
-        counter = 0
+        self.mainengineParse = parse_data(self.settings.channels,self.settings.resolution,8)
+        self.mainengineData = read_engine(self.devID,self.readSize)
+        self.datahere = np.array([])
         self.runningDAQ=True
         self.runningText.config(state='normal')
         self.runningText.configure(background='green')
@@ -224,41 +222,50 @@ class main_DAQ:
         self.runningText.insert(END,'DAQ is running')
         self.runningText.update()
         self.runningText.config(state=DISABLED)
-        totalRunTime = int(self.runTime.get())
+        self.totalRunTime = int(self.runTime.get())
         self.settings.DAQ_mode_on()
-        self.referencehit = 'no reference'
-        self.readArray = pyxxusb.new_shortArray(int(self.readSize))
-        starttime = time.time()
-        histArray = np.zeros((2,int((1000000/100)*6))) #length of this array will be the window length but for now its 6 microseconds
-        for z in range(5000000):
-            print(round(time.time() - starttime, 2))
-            if time.time()-starttime > 1:
-                #time.sleep(0.1)
-                counter += len(self.read_buffer())
-                print(counter)
-                buffer_data = []#np.array(self.parse_data(self.read_FIFO()))
-                if len(buffer_data) != 0:
-                    for i in buffer_data:
-                        dataindex = int(round(i,-2)//100)
-                        if dataindex < len(histArray[0]):
-                            histArray[0][dataindex] += 1
-                if time.time()-starttime > totalRunTime:
-                    finaltime = time.time()-starttime - 1
-                    break
-            else:
-                dump = 1 #self.drain_FIFO()
+        self.starttime = time.time()
+        while self.runningDAQ:
+            dataout = self.mainengineData.read_data()
+            self.mainengineParse.main_parse(dataout)
+            if time.time()-self.starttime > self.totalRunTime:
+                self.finaltime = time.time()-self.starttime
+                self.runningDAQ = False
+                break
+        #while True:
+        #    print(round(time.time() - self.starttime, 2))
+        #    if time.time()-self.starttime > 1:
+        #        buffer_data = self.read_buffer()
+        #        if len(buffer_data) != 0:
+        #            parse.main_parse_data(buffer_data)
+        #self.save_data(buffer_data)
+        #for i in parsed_buffer_data:
+        #    dataindex = int(round(i,-2)//self.settings.resolution)
+        #    if dataindex < len(histArray[0]):
+        #        histArray[0][dataindex] += 1
+        #        if time.time()-self.starttime > self.totalRunTime:
+        #            finaltime = time.time()-self.starttime - 1
+        #            break
+        #    else:
+        #        dump = 1#self.drain_FIFO()
         self.stop_func()
-        reprate = 50
-        totalhits = 11
-        totaltime = round(finaltime,2)
+        reprate = 3
+        totalhits = 32
+        totaltime = round(self.finaltime,2)
+        counter9 = np.sum(self.mainengineParse.histArray[9])
+        counter5 = np.sum(self.mainengineParse.histArray[5])
+        counter = counter9 + counter5
         print('percent total data made to computer')
-        print((counter/2)/(totaltime*reprate*1000*totalhits))
+        print((counter)/(totaltime*reprate*1000*totalhits))
+        print(counter9/(totaltime*reprate*1000*16))
+        print(counter5 / (totaltime * reprate * 1000 * 16))
+
         print('Total time')
         print(totaltime)
-        print('average speed in Mb/s')
-        print((counter*2)/(finaltime*1000000))
+        print('average speed in MB/s')
+        print(((counter)*4)/(self.finaltime*1000000))
         print('number of bytes')
-        print(counter*2)
+        print((counter)*4)
         print('expected number of bytes')
         print((totaltime*reprate*1000*totalhits)*4)
         '''
@@ -292,7 +299,10 @@ class main_DAQ:
                     data5 = np.append(data5, float(elements[1]))
         '''
 
-        fig = pltex.line(y=histArray[0], x=(1/10000)*np.arange(0,len(histArray[0])))
+        fig = pltex.line(y=self.mainengineParse.histArray[9], x=(1/10000)*np.arange(0,len(self.mainengineParse.histArray[9])))
+        fig.add_scatter(y=self.mainengineParse.histArray[5],x=(1/10000)*np.arange(0,len(self.mainengineParse.histArray[5])))
+        fig.add_scatter(y=self.mainengineParse.histArray[1],x=(1/10000)*np.arange(0,len(self.mainengineParse.histArray[1])))
+
         fig.show()
 
 

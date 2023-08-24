@@ -10,20 +10,6 @@ class DAQSetting:
         self.waittime = 0.3
         self.configFile = configFile
         self.open_config_file(str(self.configFile))
-        #self.baseAddress = hex(int(pulledSettings[0],16))
-        #self.triggerMode = bool(pulledSettings[1])
-        #self.offset = int(pulledSettings[2])
-        #self.window = float(pulledSettings[3])
-        #self.reject = float(pulledSettings[4])
-        #self.triggerdelay = int(pulledSettings[5])
-        #self.channels = np.array([int(i) for i in pulledSettings[6].split(',')])
-        #self.stack = np.array([hex(int(i,16)) for i in pulledSettings[7].split(',')])#pulledSettings[7]
-        #self.tdcheaders = bool(pulledSettings[8])
-        #self.tdcwarnings = bool(pulledSettings[9])
-        #self.tdcbypass = bool(pulledSettings[10])
-        #self.triggersubtract = bool(pulledSettings[11])
-        #self.extrasearch = float(pulledSettings[12])
-        #self.resolution = int(pulledSettings[13])
 
     ######################
     ######################
@@ -191,7 +177,7 @@ class DAQSetting:
         mainwritecheck = self.set_maincontrol()
         almostFullcheck = self.set_almostFull()
         intercheck = self.set_interLevel()
-        multicastcheck = self.set_multicastorder()
+        multicastcheck = 2#self.set_multicastorder()
 
         if self.triggerMode == "True":
             windowcheck1,windowcheck2 = self.set_window()  #0x1000 in manual OPCODES
@@ -271,7 +257,9 @@ class DAQSetting:
         stackdata = pyxxusb.new_longArray(len(self.stack)) #array containing the stack info to be written
         for i in range(len(self.stack)):
             pyxxusb.longArray_setitem(stackdata, i, int(self.stack[i])) #load elements into pointer
-        stackwritecheck = pyxxusb.xxusb_stack_write(self.device, 19, stackdata) #write the stack
+        stackwritecheck = pyxxusb.xxusb_stack_write(self.device, 2, stackdata) #write the stack
+        time.sleep(self.waittime)
+        pyxxusb.xxusb_stack_write(self.device, 19, stackdata)
         time.sleep(self.waittime)
         return stackwritecheck #if negative then failed to write
 
@@ -283,7 +271,7 @@ class DAQSetting:
         time.sleep(self.waittime)
         pyxxusb.VME_register_write(self.device,0x28,0x31DD)
         #pyxxusb.VME_register_write(self.device,36,250) #number of events per buffer
-        #time.sleep(self.waittime)
+        time.sleep(self.waittime)
         VMEcheck = np.array([daqVMEcheck,bulkVMEcheck,gloVMEcheck,stackVMEcheck])
         if np.any(VMEcheck < 0):
             return -1
@@ -291,11 +279,15 @@ class DAQSetting:
             return 1
 
     def DAQ_mode_on(self):
+        time.sleep(self.waittime)
         bytes_written = pyxxusb.xxusb_register_write(self.device, 1, 1)#257
+        time.sleep(self.waittime)
         return bytes_written
 
     def DAQ_mode_off(self):
+        time.sleep(self.waittime)
         bytes_written = pyxxusb.xxusb_register_write(self.device, 1, 0)
+        time.sleep(self.waittime)
         return bytes_written
 
     ######################
