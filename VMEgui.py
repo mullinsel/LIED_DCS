@@ -7,6 +7,8 @@ import customtkinter
 from settingsConfig import DAQSetting
 from engineDAQ import parse_data
 from engineDAQ import read_engine
+from engineDAQ import motor_engine
+import threading
 import multiprocessing
 
 customtkinter.set_default_color_theme("C:\\Users\cbonline\Documents\PycharmProjects\LIED_DCS\custom-tktheme.json")
@@ -106,37 +108,6 @@ class main_DAQ:
             self.write_error()
         return
 
-    def drain_FIFO(self):  # clears the buffer
-        shortData = pyxxusb.new_intArray(262144)
-        loop = 0
-        bytes_rec = 1
-        while bytes_rec > 0 and loop < 100:
-            bytes_rec = pyxxusb.xxusb_usbfifo_read(self.devID, shortData, 262144, 1000)
-            loop += 1
-
-    def read_FIFO(self):
-        readArray = pyxxusb.new_intArray(65536)#131072
-        numberread = pyxxusb.xxusb_usbfifo_read(self.devID, readArray, 65536, 1000)
-        readdata = [np.binary_repr(pyxxusb.intArray_getitem(readArray, i),width=16) for i in range(numberread//2)]
-        #data = np.array([])
-        #for i in range(len(readdata)):
-        #    if pyxxusb.intArray_getitem(readArray,i) != 0xc0c0:
-        #        data = np.append(data,np.binary_repr(pyxxusb.intArray_getitem(readArray,i),width=16))
-        #readdataOut = np.array([str(readdata[i+1]) + str(readdata[i]) for i in np.arange(0, len(readdata)-1, 2)]) #was i+1 and i
-        #hexinfo = [hex(pyxxusb.intArray_getitem(readArray, i)) for i in range(numberread // 2)]
-        print(readdata[:10])
-        print(len(readdata))
-        return readdata
-
-    def read_buffer(self):  # read what is in the buffer and outputs the array
-        # readArray = pyxxusb.new_shortArray(self.readSize) #array must be long if reading 32 or short if reading 16
-        numberread = pyxxusb.xxusb_bulk_read(self.devID, self.readArray, int(self.readSize), 10000)
-        readdata = [np.binary_repr(pyxxusb.shortArray_getitem(self.readArray, i),width=16) for i in range(numberread//2)]
-        self.datahere = np.append(self.datahere,readdata)
-        if time.time()-self.starttime > self.totalRunTime:
-            self.finaltime = time.time()-self.starttime
-            self.runningDAQ = False
-
     def connect_func(self):
         self.devID = pyxxusb.xxusb_serial_open('VM0353')
         time.sleep(1)
@@ -174,11 +145,16 @@ class main_DAQ:
         self.runningText.config(state=DISABLED)
 
     def stop_func(self):  # stop read TDC
-        self.drain_FIFO()
+        #self.settings.clear_TDC_buffer()
+        #self.settings.VME_bufferdump()
+        time.sleep(0.3)
+        dump=self.mainengineData.read_FIFO()
         time.sleep(0.3)
         self.settings.DAQ_mode_off()
         time.sleep(0.3)
-        self.drain_FIFO()
+        dump = self.mainengineData.read_FIFO()
+        time.sleep(0.3)
+        dump = self.mainengineData.read_FIFO()
         time.sleep(0.3)
         self.runningDAQ = False
         self.runningText.config(state='normal')
@@ -201,10 +177,6 @@ class main_DAQ:
             self.settingsStatus.config(state=DISABLED)
         return
 
-    def parse_data_thread(self):
-        if len(self.datahere) != 0:
-            self.parse.main_parse_data(self.datahere)
-
     def save_data(self,datain):
         file1 = open("test.txt","a")
         for i in datain:
@@ -212,37 +184,44 @@ class main_DAQ:
         file1.close()
         return
 
+    def run_sequence(self):
+        self.runningDAQ=True
+        rundata = np.zeros((np.max(self.settings.channels)+1, int((1000000 / self.settings.resolution) * self.settings.window)))
+        self.totalRunTime = int(self.runTime.get())
+        self.settings.clear_TDC_buffer()
+        self.settings.DAQ_mode_on()
+        self.starttime = time.time()
+        pool = multiprocessing.Pool(10)
+
+        while self.runningDAQ:
+            toparse = self.mainengineData.read_FIFO()
+            multidataout = pool.map(self.mainengineParse.main_parse,np.array_split(toparse,10))
+            for i in range(10): #the number of split chunks to multiprocess
+                for j in range(10): #number of channels
+                    rundata[j] += multidataout[i][j]
+            if time.time()-self.starttime > self.totalRunTime:
+                self.finaltime = time.time()-self.starttime
+                self.runningDAQ = False
+                break
+        self.stop_func()
+        return rundata
+
     def start_func(self):  # start/run read TDC
+        #initialize the engines
         self.mainengineParse = parse_data(self.settings.channels,self.settings.resolution,8)
         self.mainengineData = read_engine(self.devID,self.readSize)
-        self.datahere = np.array([])
-        self.runningDAQ=True
+        self.mainengineMotor = motor_engine()
         self.runningText.config(state='normal')
         self.runningText.configure(background='green')
         self.runningText.delete("1.0", END)
         self.runningText.insert(END,'DAQ is running')
         self.runningText.update()
         self.runningText.config(state=DISABLED)
-        self.totalRunTime = int(self.runTime.get())
-        self.settings.clear_TDC_buffer()
-        self.settings.DAQ_mode_on()
-        self.starttime = time.time()
-        maindata = np.zeros((np.max(9)+1, int((1000000 / 100) * 8)))
-        pool = multiprocessing.Pool(10)
-        while self.runningDAQ:
-            dataout = self.mainengineData.read_FIFO()
-            multidataout = pool.map(self.mainengineParse.main_parse,np.array_split(dataout,10))
-            for i in range(10):
-                for j in range(10):
-                    maindata[j] += multidataout[i][j]
-            if time.time()-self.starttime > self.totalRunTime:
-                self.finaltime = time.time()-self.starttime
-                self.runningDAQ = False
-                break
-
-        self.stop_func()
+        #maindata = np.zeros((np.max(self.settings.channels)+1, int((1000000 / self.settings.resolution) * self.settings.window)))
+        rundata = self.run_sequence()
+        maindata = rundata
         reprate = 3
-        totalhits = 32
+        totalhits = 26
         totaltime = round(self.finaltime,2)
         counter9 = np.sum(maindata[9])
         counter5 = np.sum(maindata[5])
@@ -250,10 +229,9 @@ class main_DAQ:
         counter = counter9 + counter5 + counter2
         print('percent total data made to computer')
         print((counter)/(totaltime*reprate*1000*totalhits))
-        print(counter9/(totaltime*reprate*1000*16))
-        print(counter5 / (totaltime * reprate * 1000 * 16))
-        print(counter2 / (totaltime * reprate * 1000 * 16))
-
+        print(counter9/(totaltime*reprate*1000*9))
+        print(counter5 / (totaltime * reprate * 1000 * 9))
+        print(counter2 / (totaltime * reprate * 1000 * 8))
 
         print('Total time')
         print(totaltime)
@@ -263,42 +241,9 @@ class main_DAQ:
         print((counter)*4)
         print('expected number of bytes')
         print((totaltime*reprate*1000*totalhits)*4)
-        '''
-        print('Check')
-        print('zero')
-        zerocount = np.sum(histArray[0][0:300])
-        print(zerocount)
-        print(zerocount/(finaltime*reprate*1000))
-        print('one')
-        onecount = np.sum(histArray[0][7000:7500])
-        print(onecount)
-        print(onecount/(finaltime*reprate*1000))
-        print('two')
-        twocount = np.sum(histArray[0][8000:8500])
-        print(twocount)
-        print(twocount/(finaltime*reprate*1000))
-        totalsum = np.sum(histArray[0])
-        print('total')
-        print(totalsum)
-        print(totalsum/(33*finaltime*reprate*1000))
-        '''
-        '''
-        with open(self.saveDirectory.get(),"r") as readFile:
-            test = readFile.read()
-            test = test.split('\n')
-            for i in test:
-                elements = i.split(', ')
-                if elements[0] == str(0):
-                    data0 = np.append(data0,float(elements[1]))
-                if elements[0] == str(5):
-                    data5 = np.append(data5, float(elements[1]))
-        '''
-
         fig = pltex.line(y=maindata[9], x=(1/10000)*np.arange(0,len(maindata[9])))
         fig.add_scatter(y=maindata[5],x=(1/10000)*np.arange(0,len(maindata[5])))
         fig.add_scatter(y=maindata[2],x=(1/10000)*np.arange(0,len(maindata[2])))
-
-        #fig.add_scatter(y=self.mainengineParse.histArray[1],x=(1/10000)*np.arange(0,len(self.mainengineParse.histArray[1])))
         fig.show()
 
 if __name__ == '__main__':

@@ -168,7 +168,7 @@ class DAQSetting:
 
     def clear_TDC_buffer(self):
         time.sleep(self.waittime)
-        pyxxusb.VME_write_16(self.device,self.AM,self.baseAddress+int(0x1016),1)
+        pyxxusb.VME_write_16(self.device,self.AM,self.baseAddress+int(0x1016),0)
         time.sleep(self.waittime)
         return
 
@@ -184,7 +184,11 @@ class DAQSetting:
         almostFullcheck = self.set_almostFull()
         intercheck = self.set_interLevel()
         multicastcheck = 2#self.set_multicastorder()
-
+        #time.sleep(self.waittime)
+        #pyxxusb.VME_write_16(self.device,self.AM,0x0400102E,0x3B00)
+        #time.sleep(self.waittime)
+        #pyxxusb.VME_write_16(self.device,self.AM,0x400102E,4)
+        #time.sleep(self.waittime)
         if self.triggerMode == "True":
             windowcheck1,windowcheck2 = self.set_window()  #0x1000 in manual OPCODES
             offsetcheck1,offsetcheck2 = self.set_offset()  #0x1100 in manual OPCODES
@@ -193,8 +197,8 @@ class DAQSetting:
             subtractcheck1 = self.set_triggersubtract() #0x1400 and 0x1500 in manual OPCODES
             #pyxxusb.VME_write_16(self.device, self.AM, 0x0400102E, 0x3300)  # limits the number of hits
             #time.sleep(self.waittime)
-            #pyxxusb.VME_write_16(self.device, self.AM, 0x0400102E, 6)
-            #time.sleep(self.waittime)
+            #pyxxusb.VME_write_16(self.device, self.AM, 0x0400102E, 5) #limits to 8 hits per event
+            time.sleep(self.waittime)
             checkList = np.array([multicastcheck,intercheck,almostFullcheck,mainwritecheck,writenumberbltcheck,modecheck, rescheck1, rescheck2, windowcheck1, windowcheck2, offsetcheck1, offsetcheck2,extrasearchcheck1, extrasearchcheck2, rejectcheck1, rejectcheck2, subtractcheck1, headerscheck,warningscheck, bypasscheck, disablecheck, enablecheck1, enablecheck2])
 
         else:
@@ -265,7 +269,7 @@ class DAQSetting:
             pyxxusb.longArray_setitem(stackdata, i, int(self.stack[i])) #load elements into pointer
         stackwritecheck = pyxxusb.xxusb_stack_write(self.device, 2, stackdata) #write the stack
         time.sleep(self.waittime)
-        pyxxusb.xxusb_stack_write(self.device, 19, stackdata)
+        #pyxxusb.xxusb_stack_write(self.device, 19, stackdata)
         time.sleep(self.waittime)
         return stackwritecheck #if negative then failed to write
 
@@ -275,8 +279,8 @@ class DAQSetting:
         gloVMEcheck = self.set_VME_globalmode() #put this one last as 32 bit mode may be turned on
         stackVMEcheck = self.set_VME_stack()
         time.sleep(self.waittime)
-        pyxxusb.VME_register_write(self.device,0x28,0x31DD)
-        #pyxxusb.VME_register_write(self.device,36,250) #number of events per buffer
+        #pyxxusb.VME_register_write(self.device,0x28,0x31DD)
+        pyxxusb.VME_register_write(self.device,36,1) #number of events per buffer
         time.sleep(self.waittime)
         VMEcheck = np.array([daqVMEcheck,bulkVMEcheck,gloVMEcheck,stackVMEcheck])
         if np.any(VMEcheck < 0):
@@ -285,8 +289,9 @@ class DAQSetting:
             return 1
 
     def DAQ_mode_on(self):
+
         time.sleep(self.waittime)
-        bytes_written = pyxxusb.xxusb_register_write(self.device, 1, 1)#257
+        bytes_written = pyxxusb.xxusb_register_write(self.device, 1, 257)#257
         time.sleep(self.waittime)
         return bytes_written
 
@@ -295,6 +300,12 @@ class DAQSetting:
         bytes_written = pyxxusb.xxusb_register_write(self.device, 1, 0)
         time.sleep(self.waittime)
         return bytes_written
+
+    def VME_bufferdump(self):
+        time.sleep(self.waittime)
+        pyxxusb.VME_register_write(self.device,1,64)
+        time.sleep(self.waittime)
+        return
 
     ######################
     ######################

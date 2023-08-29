@@ -1,6 +1,6 @@
 import numpy as np
 from pyxxusb import pyxxusb
-import multiprocessing
+from pylablib.devices import Thorlabs
 
 class parse_data:
     def __init__(self,numberOfChannels,binRes,windowSize):
@@ -11,14 +11,17 @@ class parse_data:
         self.histArray = np.zeros((np.max(numberOfChannels)+1, int((1000000 / binRes) * windowSize)))
         return
 
-    def parseForData(self,dataToParse,channels):
-        tdcmeasured = np.array([])
+    def parseForData(self,dataToParse,):
         for i in range(len(dataToParse)):
-            if str(dataToParse[i][:5]) == '00000' and i - 1 > 0:
-                if int(dataToParse[i][6:11], 2) in channels:
-                    if (dataToParse[i] + dataToParse[i - 1] != '11000000000000000000000000000000') and (dataToParse[i] + dataToParse[i - 1] !='00000000000000000000000100100000'):
-                        tdcmeasured = np.append(tdcmeasured, dataToParse[i] + dataToParse[i - 1])
-        return tdcmeasured
+            datahit = dataToParse[i]
+            hitchannel = int(datahit[6:11],2)
+            hitmeasure = self.res*int(datahit[11:],2)
+            if hitchannel == 1:
+                self.referencehit = hitmeasure
+            if hitchannel != 1 and self.referencehit != 'no reference':
+                dataindex = int(round(np.abs(hitmeasure - self.referencehit), -2) // self.res)
+                self.histArray[int(hitchannel)][dataindex] += 1
+        return
 
     def parse_channel(self,datain):
         return np.array([int((datain[i][6:11]),2) for i in range(len(datain))])
@@ -29,20 +32,26 @@ class parse_data:
     def add_to_hist(self,parsed_buffer_data,channelData):
         if len(parsed_buffer_data) != 0:
             for i in range(len(parsed_buffer_data)):
-                dataindex = int(round(parsed_buffer_data[i], -2) // self.res)
-                if dataindex < len(self.histArray[int(channelData[i])]):
-                    self.histArray[int(channelData[i])][dataindex] += 1
+                if channelData[i] == 1:
+                    self.referencehit = parsed_buffer_data[i]
+                if channelData[i] != 1 and self.referencehit != 'no reference':
+                    dataindex = int(round(np.abs(parsed_buffer_data[i]-self.referencehit), -2) // self.res)
+                    if dataindex < len(self.histArray[int(channelData[i])]):
+                        self.histArray[int(channelData[i])][dataindex] += 1
         return
 
     def main_parse(self,dataIn):
+        filtereddata = np.array([])
         if len(dataIn) != 0:
-            tdcmeasured = self.parseForData(dataIn,self.numberChan)
-            channel = self.parse_channel(tdcmeasured)
-            measure = self.parse_measure(tdcmeasured)
-            self.add_to_hist(measure, channel)
-            return self.histArray
-        else:
-            return
+            for i in range(len(dataIn)):
+                if dataIn[i] in [160,288,32,64]:
+                    chunk = np.binary_repr(dataIn[i],width=16)+np.binary_repr(dataIn[i-1],width=16)
+                    filtereddata = np.append(filtereddata,chunk)
+            self.parseForData(filtereddata)
+            #channel = self.parse_channel(tdcmeasured)
+            #measure = self.parse_measure(tdcmeasured)
+            #self.add_to_hist(measure, channel)
+        return self.histArray
 
     def multiparse(self,dataToParse):
         histArray =  np.zeros((np.max(9)+1, int((1000000 / 100) * 8)))
@@ -80,8 +89,8 @@ class read_engine:
 
     def read_FIFO(self):
         numberread = pyxxusb.xxusb_usbfifo_read(self.devID, self.readArray, int(self.readSize), 1000)
-        readdata = [np.binary_repr(pyxxusb.intArray_getitem(self.readArray, i),width=16) for i in range(numberread//2)]
-        #print(len(readdata))
+        readdata = [pyxxusb.intArray_getitem(self.readArray, i) for i in range(numberread//2)]
+        #binaryrep = [np.binary_repr(i,width=16) for i in readdata]
         #print(readdata[:50])
         #data = np.array([])
         #for i in range(len(readdata)):
@@ -90,3 +99,18 @@ class read_engine:
         #readdataOut = np.array([str(readdata[i+1]) + str(readdata[i]) for i in np.arange(0, len(readdata)-1, 2)]) #was i+1 and i
         #hexinfo = [hex(pyxxusb.intArray_getitem(readArray, i)) for i in range(numberread // 2)]
         return readdata
+
+    def drain_FIFO(self):  # clears the buffer
+        shortData = pyxxusb.new_intArray(262144)
+        loop = 0
+        bytes_rec = 1
+        while bytes_rec > 0 and loop < 100:
+            bytes_rec = pyxxusb.xxusb_usbfifo_read(self.devID, shortData, 262144, 1000)
+            loop += 1
+
+
+class motor_engine:
+    def __init__(self):
+        whats_there = Thorlabs.list_kinesis_devices()
+        print(whats_there)
+        return
