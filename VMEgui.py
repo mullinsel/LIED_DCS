@@ -8,8 +8,8 @@ from settingsConfig import DAQSetting
 from engineDAQ import parse_data
 from engineDAQ import read_engine
 from engineDAQ import motor_engine
-import threading
 import multiprocessing
+
 
 customtkinter.set_default_color_theme("C:\\Users\cbonline\Documents\PycharmProjects\LIED_DCS\custom-tktheme.json")
 class main_DAQ:
@@ -61,10 +61,22 @@ class main_DAQ:
         self.settingsStatus.insert(END,'Settings Unwritten')
         self.settingsStatus.place(x=750,y=250)
         self.settingsStatus.config(state=DISABLED)
-        customtkinter.CTkLabel(master, text='Runtime(s)', font=('Helvetica', 20)).place(x=20, y=200)
+        customtkinter.CTkLabel(master, text='Step runtime(s)', font=('Helvetica', 20)).place(x=20, y=200)
         self.runTime = Entry(master)
         self.runTime.insert(END,'101')
         self.runTime.place(x=20,y=225)
+        self.motorStepSize = Entry(master)
+        self.motorStepSize.insert(END,'1')
+        self.motorStepSize.place(x=20,y=400)
+        customtkinter.CTkLabel(master, text='Waveplate step size(deg)', font=('Helvetica', 20)).place(x=20, y=360)
+        self.numberOfRuns = Entry(master)
+        self.numberOfRuns.insert(END,'1')
+        self.numberOfRuns.place(x=20,y=300)
+        customtkinter.CTkLabel(master, text='Run Number(int)', font=('Helvetica', 20)).place(x=20, y=260)
+        self.motorStarting = Entry(master)
+        self.motorStarting.insert(END,'1')
+        self.motorStarting.place(x=20,y=500)
+        customtkinter.CTkLabel(master, text='Waveplate Start Position(deg)', font=('Helvetica', 20)).place(x=20, y=460)
         self.readSize = int(4096*255) #524288
 
     def close_window(self):
@@ -177,11 +189,20 @@ class main_DAQ:
             self.settingsStatus.config(state=DISABLED)
         return
 
-    def save_data(self,datain):
-        file1 = open("test.txt","a")
-        for i in datain:
-            file1.write(str(i)+"\n")
-        file1.close()
+    def save_data(self,datain,header):
+        #file1 = open("test.txt","a")
+        #for i in datain:
+        #    file1.write(str(i)+"\n")
+        #file1.close()
+        with open(self.saveDirectory.get(), 'a') as f:
+            f.write(str(header) + "\n")
+            f.write("\n")
+            for i in range(len(datain)):
+                if np.any(datain[i]):
+                    f.write('channel:' + str(i) + "\n")
+                    np.savetxt(f,datain[i])
+                    f.write("\n")
+        f.close()
         return
 
     def run_sequence(self):
@@ -192,17 +213,22 @@ class main_DAQ:
         self.settings.DAQ_mode_on()
         self.starttime = time.time()
         pool = multiprocessing.Pool(10)
-
         while self.runningDAQ:
-            toparse = self.mainengineData.read_FIFO()
-            multidataout = pool.map(self.mainengineParse.main_parse,np.array_split(toparse,10))
-            for i in range(10): #the number of split chunks to multiprocess
-                for j in range(10): #number of channels
-                    rundata[j] += multidataout[i][j]
-            if time.time()-self.starttime > self.totalRunTime:
-                self.finaltime = time.time()-self.starttime
+            if (time.time()-self.starttime) > 4:
+                toparse = self.mainengineData.read_FIFO()
+                multidataout = pool.map(self.mainengineParse.main_parse,np.array_split(toparse,10))
+                for i in range(10): #the number of split chunks to multiprocess
+                    for j in range(10): #number of channels
+                        rundata[j] += multidataout[i][j]
+            else:
+                dump = self.mainengineData.read_FIFO()
+
+            if (time.time()-self.starttime - 4) > self.totalRunTime:
+                self.finaltime = time.time()-self.starttime - 4
                 self.runningDAQ = False
                 break
+        pool.close()
+        pool.join()
         self.stop_func()
         return rundata
 
@@ -210,28 +236,46 @@ class main_DAQ:
         #initialize the engines
         self.mainengineParse = parse_data(self.settings.channels,self.settings.resolution,8)
         self.mainengineData = read_engine(self.devID,self.readSize)
-        self.mainengineMotor = motor_engine()
+        self.motor = motor_engine()
+
         self.runningText.config(state='normal')
         self.runningText.configure(background='green')
         self.runningText.delete("1.0", END)
         self.runningText.insert(END,'DAQ is running')
         self.runningText.update()
         self.runningText.config(state=DISABLED)
-        #maindata = np.zeros((np.max(self.settings.channels)+1, int((1000000 / self.settings.resolution) * self.settings.window)))
-        rundata = self.run_sequence()
+        self.motorStepSize.config(state=DISABLED)
+        self.numberOfRuns.config(state=DISABLED)
+        self.runTime.config(state=DISABLED)
+        self.motorStarting.config(state=DISABLED)
+
+        maindata = np.zeros((np.max(self.settings.channels)+1, int((1000000 / 100) * 8)))
+        waveplateposition = float(self.motorStarting.get())
+        print(type(waveplateposition))
+        self.motor.move_motor(waveplateposition)
+        for i in range(int(self.numberOfRuns.get())):
+            headerArray = np.array(['runNumber',i,'waveplateLocation',waveplateposition,'binRes',self.settings.resolution,'channels',str(self.settings.channels),'windowSize',self.settings.window])
+            rundata = self.run_sequence()
+            time.sleep(0.3)
+            self.save_data(rundata,headerArray)
+            time.sleep(0.3)
+            waveplateposition += float(self.motorStepSize.get())
+            self.motor.move_motor(waveplateposition)
+            time.sleep(0.3)
+
         maindata = rundata
         reprate = 3
-        totalhits = 26
+        totalhits = 18
         totaltime = round(self.finaltime,2)
         counter9 = np.sum(maindata[9])
         counter5 = np.sum(maindata[5])
-        counter2 = np.sum(maindata[2])
-        counter = counter9 + counter5 + counter2
+        #counter2 = np.sum(maindata[2])
+        counter = counter9 + counter5 #+ counter2
         print('percent total data made to computer')
         print((counter)/(totaltime*reprate*1000*totalhits))
         print(counter9/(totaltime*reprate*1000*9))
         print(counter5 / (totaltime * reprate * 1000 * 9))
-        print(counter2 / (totaltime * reprate * 1000 * 8))
+        #print(counter2 / (totaltime * reprate * 1000 * 8))
 
         print('Total time')
         print(totaltime)
@@ -243,7 +287,7 @@ class main_DAQ:
         print((totaltime*reprate*1000*totalhits)*4)
         fig = pltex.line(y=maindata[9], x=(1/10000)*np.arange(0,len(maindata[9])))
         fig.add_scatter(y=maindata[5],x=(1/10000)*np.arange(0,len(maindata[5])))
-        fig.add_scatter(y=maindata[2],x=(1/10000)*np.arange(0,len(maindata[2])))
+        #fig.add_scatter(y=maindata[2],x=(1/10000)*np.arange(0,len(maindata[2])))
         fig.show()
 
 if __name__ == '__main__':

@@ -1,6 +1,7 @@
 import numpy as np
 from pyxxusb import pyxxusb
 from pylablib.devices import Thorlabs
+import time
 
 class parse_data:
     def __init__(self,numberOfChannels,binRes,windowSize):
@@ -110,7 +111,16 @@ class read_engine:
 
 
 class motor_engine:
-    def __init__(self):
-        whats_there = Thorlabs.list_kinesis_devices()
-        print(whats_there)
+    def __init__(self): #motor is in units of meters but only has mm in travel distance
+        self.motorID = Thorlabs.list_kinesis_devices()[0][0]
+        self.motor = Thorlabs.KinesisMotor(str(self.motorID),scale="stage")
+        position = self.motor.get_position()
+        print(round(position,6))
+        return
+
+    def move_motor(self,deg):
+        self.motor.move_to(deg)
+        time.sleep(1.5)
+        position = self.motor.get_position()
+        print(round(position,6))
         return
