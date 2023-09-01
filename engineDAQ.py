@@ -115,12 +115,12 @@ class motor_engine:
         self.motorID = Thorlabs.list_kinesis_devices()[0][0]
         self.motor = Thorlabs.KinesisMotor(str(self.motorID),scale="stage")
         position = self.motor.get_position()
-        print(round(position,6))
         return
 
     def move_motor(self,deg):
         self.motor.move_to(deg)
         time.sleep(1.5)
         position = self.motor.get_position()
+        print('End of collection time, moving motor to:')
         print(round(position,6))
         return

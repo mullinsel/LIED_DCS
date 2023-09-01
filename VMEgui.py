@@ -10,7 +10,6 @@ from engineDAQ import read_engine
 from engineDAQ import motor_engine
 import multiprocessing
 
-
 customtkinter.set_default_color_theme("C:\\Users\cbonline\Documents\PycharmProjects\LIED_DCS\custom-tktheme.json")
 class main_DAQ:
     def __init__(self,master):
@@ -61,9 +60,9 @@ class main_DAQ:
         self.settingsStatus.insert(END,'Settings Unwritten')
         self.settingsStatus.place(x=750,y=250)
         self.settingsStatus.config(state=DISABLED)
-        customtkinter.CTkLabel(master, text='Step runtime(s)', font=('Helvetica', 20)).place(x=20, y=200)
+        customtkinter.CTkLabel(master, text='Collection runtime(s)', font=('Helvetica', 20)).place(x=20, y=200)
         self.runTime = Entry(master)
-        self.runTime.insert(END,'101')
+        self.runTime.insert(END,'100')
         self.runTime.place(x=20,y=225)
         self.motorStepSize = Entry(master)
         self.motorStepSize.insert(END,'1')
@@ -72,9 +71,9 @@ class main_DAQ:
         self.numberOfRuns = Entry(master)
         self.numberOfRuns.insert(END,'1')
         self.numberOfRuns.place(x=20,y=300)
-        customtkinter.CTkLabel(master, text='Run Number(int)', font=('Helvetica', 20)).place(x=20, y=260)
+        customtkinter.CTkLabel(master, text='Number of collections(int)', font=('Helvetica', 20)).place(x=20, y=260)
         self.motorStarting = Entry(master)
-        self.motorStarting.insert(END,'1')
+        self.motorStarting.insert(END,'0')
         self.motorStarting.place(x=20,y=500)
         customtkinter.CTkLabel(master, text='Waveplate Start Position(deg)', font=('Helvetica', 20)).place(x=20, y=460)
         self.readSize = int(4096*255) #524288
@@ -210,6 +209,7 @@ class main_DAQ:
         rundata = np.zeros((np.max(self.settings.channels)+1, int((1000000 / self.settings.resolution) * self.settings.window)))
         self.totalRunTime = int(self.runTime.get())
         self.settings.clear_TDC_buffer()
+        self.settings.VME_bufferdump()
         self.settings.DAQ_mode_on()
         self.starttime = time.time()
         pool = multiprocessing.Pool(10)
@@ -251,10 +251,9 @@ class main_DAQ:
 
         maindata = np.zeros((np.max(self.settings.channels)+1, int((1000000 / 100) * 8)))
         waveplateposition = float(self.motorStarting.get())
-        print(type(waveplateposition))
         self.motor.move_motor(waveplateposition)
         for i in range(int(self.numberOfRuns.get())):
-            headerArray = np.array(['runNumber',i,'waveplateLocation',waveplateposition,'binRes',self.settings.resolution,'channels',str(self.settings.channels),'windowSize',self.settings.window])
+            headerArray = np.array(['runNumber',i,'waveplateLocation',waveplateposition,'binRes',self.settings.resolution,'channels',str(self.settings.channels),'windowSize',self.settings.window,'offset',self.settings.offset,'runtime',self.runTime.get()])
             rundata = self.run_sequence()
             time.sleep(0.3)
             self.save_data(rundata,headerArray)
@@ -262,7 +261,6 @@ class main_DAQ:
             waveplateposition += float(self.motorStepSize.get())
             self.motor.move_motor(waveplateposition)
             time.sleep(0.3)
-
         maindata = rundata
         reprate = 3
         totalhits = 18

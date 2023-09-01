@@ -278,10 +278,10 @@ class DAQSetting:
         bulkVMEcheck = self.set_VME_bulktransfer()
         gloVMEcheck = self.set_VME_globalmode() #put this one last as 32 bit mode may be turned on
         stackVMEcheck = self.set_VME_stack()
-        time.sleep(self.waittime)
+        #time.sleep(self.waittime)
         #pyxxusb.VME_register_write(self.device,0x28,0x31DD)
-        pyxxusb.VME_register_write(self.device,36,1) #number of events per buffer
-        time.sleep(self.waittime)
+        #pyxxusb.VME_register_write(self.device,36,1) #number of events per buffer
+        #time.sleep(self.waittime)
         VMEcheck = np.array([daqVMEcheck,bulkVMEcheck,gloVMEcheck,stackVMEcheck])
         if np.any(VMEcheck < 0):
             return -1
@@ -359,7 +359,3 @@ class DAQSetting:
         self.bulkBuffers = int(self.parse_file('Bulk buffers = ',settingsFile))
         self.bulkBufferTimeout = int(self.parse_file('Bulk buffer timeout = ',settingsFile))
         return
-
-#setup = DAQSetting(pyxxusb.xxusb_serial_open('VM0353'),'configSetup.txt')
-#setup.setup_TDC()
-#setup.setup_VME()
